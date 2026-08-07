@@ -1,2 +1,4 @@
-# tunelog-backend
-Python Backend for my Tunelog project- TLB
+# Tunelog Backend : TLB
+
+Tunelog Backend is the backend for the Tunelog Project built in Python. 
+

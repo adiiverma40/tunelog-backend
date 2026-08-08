@@ -1,0 +1,20 @@
+services:
+  tunelog-backend:
+    build: ./
+    container_name: TLB
+    restart: unless-stopped
+    tty: true 
+    stdin_open: true
+    volumes:
+      - /home/adii/Projects/tunelog/data/:/app/data
+      - /home/adii/Projects/tunelog/logs/:/app/logs
+      - /home/adii/Projects/tunelog/config/:/app/config
+    environment:
+    - PYTHONUNBUFFERED=1
+    - FORCE_COLOR=1
+    - TERM=xterm-256color
+    env_file:
+      - .env
+    ports:
+      - "8001:8000"
+      - "4536:4534"

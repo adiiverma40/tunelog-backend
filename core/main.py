@@ -1,3 +1,4 @@
+from calendar import c
 import os
 import sys
 import threading
@@ -528,14 +529,19 @@ def main():
     is_lb_syncing = False
     last_lb_sync_timestamp = None
 
-    console.print("[bold blue]Starting Library Sync(20 sec delay)")
+    conn = get_db_connection_lib()
+    cursor = conn.cursor()
+    song = cursor.execute("select * from library").fetchone()
+    if song is not None:
+        run_migration_v_0_63_2()
 
+    console.print("[bold blue]Starting Library Sync(20 sec delay)")
     syncThread = threading.Timer(20, library.sync_library)
     syncThread.start()
     syncThread.join()
-    runnerThread= threading.Timer(20, run_migration_v_0_63_2)  
-    runnerThread.start()
-    runnerThread.join()
+    # runnerThread= threading.Timer(20, run_migration_v_0_63_2)  
+    # runnerThread.start()
+    # runnerThread.join()
 
     console.print("[bold blue]Starting Scoring CORN JOB(1m delay)")
     scoringThread = threading.Timer(60, songScoringCorn)

@@ -8,8 +8,11 @@ from profile import run
 from socket import getservbyname
 from zoneinfo import ZoneInfo
 
-import metadata.library as library
 import uvicorn
+from dotenv import load_dotenv
+from rich.console import Console
+
+import metadata.library as library
 from core.db import (
     get_db_connection,
     get_db_connection_lib,
@@ -23,7 +26,6 @@ from core.db import (
 )
 from CORN.pushHeartLB import pushStarredToListenBrainz
 from CORN.SongScoring import songScoringCorn
-from dotenv import load_dotenv
 from metadata.itunesFuzzy import useFallBackMethods
 from metadata.library import sync_library
 from migration.runner import run_migration_v_0_63_2
@@ -64,7 +66,6 @@ from playlists.listenbrainz_playlist import (
     match_and_update_nvid,
     retryFailedSongs,
 )
-from rich.console import Console
 from scrobble.listenBrainz import fuzzyMatchingSong
 from Workers.Luffy import Sanji
 from Workers.worker_queue import ND_queue, NDWork
@@ -522,7 +523,6 @@ def main():
             console.print(f"[red]✗ Watcher startup failed:[/red] {e}")
             sys.exit(1)
     console.print("[green]✓ Watcher running[/green]")
-    run_migration_v_0_63_2()
     last_auto_sync_day = None
     isGenerated = False
     is_lb_syncing = False
@@ -533,6 +533,10 @@ def main():
     syncThread = threading.Timer(20, library.sync_library)
     syncThread.start()
     syncThread.join()
+    runnerThread= threading.Timer(20, run_migration_v_0_63_2)  
+    runnerThread.start()
+    runnerThread.join()
+
     console.print("[bold blue]Starting Scoring CORN JOB(1m delay)")
     scoringThread = threading.Timer(60, songScoringCorn)
     scoringThread.start()

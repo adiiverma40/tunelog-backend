@@ -4,9 +4,12 @@ import shutil
 import tempfile
 from threading import Thread
 
+from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
+from pydantic import BaseModel
+from rich.console import Console
+
 import metadata.library as library
 from core.db import get_db_connection, get_db_connection_lib
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 from metadata.genre import DeleteDataJson, autoGenre, readJson, writeJson
 from metadata.itunesFuzzy import useFallBackMethods
 from metadata.library import recommendDelete as RD
@@ -16,8 +19,6 @@ from misc.scripts.macScript import MacShellScript
 from misc.scripts.powershellScript import PowerShellScript
 from navidrome.state import app_state, save_skip_config, skip_config
 from playlists.import_playlist import fuzzymatching
-from pydantic import BaseModel
-from rich.console import Console
 
 console = Console()
 

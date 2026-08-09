@@ -8,10 +8,11 @@ import random
 import string
 
 import httpx
-from core.config import Navidrome_admin, navidrome_password
-from core.config import Navidrome_url as ND_BASE
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+
+from core.config import Navidrome_admin, navidrome_password
+from core.config import Navidrome_url as ND_BASE
 from Workers.worker_queue import ND_queue, NDWork
 
 from .auth_router import get_current_user, get_ND_Token
@@ -33,8 +34,6 @@ def get_subsonic_auth():
         "v": SUBSONIC_VERSION,
         "c": SUBSONIC_CLIENT,
     }
-
-
 
 
 @router.get("/api/coverart/{cover_id}")
@@ -80,7 +79,7 @@ def get_playlist(playlist_id: str, username: str = Depends(get_current_user)):
         response = ND_queue.addWork(
             NDWork(method="get", endpoint=f"/api/playlist/{playlist_id}", token=token)
         )
-        
+
         return response
     except Exception as e:
         return HTTPException(
@@ -93,12 +92,15 @@ def get_playlist_tracks(playlist_id: str, username: str = Depends(get_current_us
     try:
         token = get_ND_Token(username=username)
         response = ND_queue.addWork(
-            NDWork(method="get", endpoint=f"/api/playlist/{playlist_id}/tracks", token=token)
+            NDWork(
+                method="get",
+                endpoint=f"/api/playlist/{playlist_id}/tracks",
+                token=token,
+            )
         )
-        
+
         return response
     except Exception as e:
         return HTTPException(
             status_code=500, detail=f"Navidrome connection error: {str(e)}"
         )
-

@@ -1,7 +1,7 @@
 services:
   tunelog-backend:
     build: ./
-    container_name: TLB
+    container_name: tunelog-backend
     restart: unless-stopped
     tty: true 
     stdin_open: true

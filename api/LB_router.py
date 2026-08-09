@@ -2,6 +2,10 @@ import threading
 from typing import List, Literal, Optional
 
 import requests
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
+from rich.console import Console
+
 from core.crypto import decrypt_token, encrypt_token
 from core.db import (
     DB_PATH_MB,
@@ -10,11 +14,8 @@ from core.db import (
     get_db_connection_usr,
 )
 from core.main import Auto_LB_CF, generate_listenbrainz_playlist
-from fastapi import APIRouter, Depends, Query
 from navidrome.state import automation_config, save_automation_config
 from playlists.base_playlist import API_push_playlist
-from pydantic import BaseModel
-from rich.console import Console
 from scrobble.listenBrainz import batchMatchNavidromeTracks
 
 from .auth_router import get_current_user

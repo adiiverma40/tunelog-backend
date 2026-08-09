@@ -137,3 +137,19 @@ jobs:
           echo "Signing with digest: $DIGEST"
 
           echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+
+
+  Publish-tunelog:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    needs: [merge-backend]
+    permissions:
+      contents: write
+    steps:
+      - name: Install crane
+        uses: iarekylew00t/crane-installer@v4
+      - name: Login docker 
+        run : crane auth login ghcr.io -u adiiverma40 -p ${{secrets.PAT}}
+      - name: push docker package
+        run : crane copy ghcr.io/adiiverma40/tunelog-backend/backend:${{ steps.meta.outputs.version }} ghcr.io/adiiverma40/tunelog/backend:${{ steps.meta.outputs.version }}

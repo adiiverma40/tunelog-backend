@@ -2,6 +2,11 @@ import os
 from pathlib import Path
 
 import socketio
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
 from api import (
     LB_router,
     analaytic_router,
@@ -13,10 +18,6 @@ from api import (
     user_router,
 )
 from core.db import init_db, init_db_lib, init_db_usr
-from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 

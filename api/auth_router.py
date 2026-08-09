@@ -1,8 +1,5 @@
 from datetime import datetime, timedelta
 
-from core.config import getJWT
-from core.crypto import decrypt_token, encrypt_token, get_secret_key
-from core.db import get_db_connection_usr
 from fastapi import (
     APIRouter,
     Cookie,
@@ -14,6 +11,10 @@ from fastapi import (
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from rich.console import Console
+
+from core.config import getJWT
+from core.crypto import decrypt_token, encrypt_token, get_secret_key
+from core.db import get_db_connection_usr
 
 console = Console()
 router = APIRouter(tags=["Auth"])

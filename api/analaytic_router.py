@@ -1,10 +1,12 @@
+from fastapi import APIRouter
+
 from core.db import (
     get_db_connection,
     get_db_connection_lib,
 )
-from fastapi import APIRouter
 
 router = APIRouter(tags=["analytics"])
+
 
 @router.get("/api/library/getMonthlyListens")
 def getMonthlyListens():

@@ -13,6 +13,9 @@
 # 8. Refresh the library db. this will make it so that library db has new song ids,
 # 9. Now, using library db as source of truth, we can updated the rest of dbs using old_song_id to map the new song id, This will be faster then fetching from ND for each song.
 
+from rapidfuzz import fuzz
+from rich.console import Console
+
 from core.db import (
     DB_PATH_LIB,
     DB_PATH_MB,
@@ -23,8 +26,6 @@ from core.db import (
 )
 from metadata.library import sync_library
 from navidrome.misc import get_ND_token
-from rapidfuzz import fuzz
-from rich.console import Console
 from Workers.worker_queue import ND_queue, NDWork
 
 console = Console()
@@ -42,6 +43,11 @@ def v_0_63_2_migrate():
     )
     # nd_song = fetch_nd_song("asdfiugasbf asdfhuia sd hf;isjhasdbudvkmbdc")
     nd_song = fetch_nd_song(random_song.get("title"))
+    if random_song is None:
+        console.print("[bold yellow]\\[Migration](v0.63.2):: Library is empty. Skipping migration ::")
+        cursor.close()
+        conn.close()
+        return False
     console.print(
         f"[bold purple]\\[Migration](v0.63.2):: ND returned :: {len(nd_song)} responses"
     )
@@ -81,6 +87,8 @@ def fetch_random_song(cursor):
         "SELECT song_id, title, artist FROM library ORDER BY RANDOM() LIMIT 1"
     )
     song = cursor.fetchone()
+    if song is None:
+        return None
     return {"song_id": song[0], "title": song[1], "artist": song[2]}
 
 
@@ -158,6 +166,7 @@ def migrate_new_song_id(cursor):
         """
     )
     cursor.connection.commit()
+
 
 # Whats better then importing two functions? YES!, correct, importing one function
 def migrate_database():

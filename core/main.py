@@ -1,12 +1,9 @@
-from calendar import c
 import os
 import sys
 import threading
 import time
 import traceback
 from datetime import datetime
-from profile import run
-from socket import getservbyname
 from zoneinfo import ZoneInfo
 
 import uvicorn
@@ -30,7 +27,6 @@ from CORN.SongScoring import songScoringCorn
 from metadata.itunesFuzzy import useFallBackMethods
 from metadata.library import sync_library
 from migration.runner import run_migration_v_0_63_2
-from migration.v_0_63_2 import v_0_63_2_migrate
 from navidrome.auth import checkCred_SaveCred
 from navidrome.misc import sync_ND_users
 from navidrome.state import (
@@ -58,7 +54,6 @@ from playlists.discovery_playlist import (
     get_discovery_pool,
     resolve_date_window,
 )
-from playlists.entry_point import run_tier
 from playlists.listenbrainz_playlist import (
     FetchCF,
     build_LB_CF_playlist,
@@ -69,7 +64,6 @@ from playlists.listenbrainz_playlist import (
 )
 from scrobble.listenBrainz import fuzzyMatchingSong
 from Workers.Luffy import Sanji
-from Workers.worker_queue import ND_queue, NDWork
 
 from .config import event_queue
 
@@ -534,12 +528,14 @@ def main():
     song = cursor.execute("select * from library").fetchone()
     if song is not None:
         run_migration_v_0_63_2()
+    else:
+        print("library is empty, skipping migration")
 
     console.print("[bold blue]Starting Library Sync(20 sec delay)")
     syncThread = threading.Timer(20, library.sync_library)
     syncThread.start()
     syncThread.join()
-    # runnerThread= threading.Timer(20, run_migration_v_0_63_2)  
+    # runnerThread= threading.Timer(20, run_migration_v_0_63_2)
     # runnerThread.start()
     # runnerThread.join()
 

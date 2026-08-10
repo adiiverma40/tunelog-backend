@@ -1,16 +1,15 @@
 # Functions that i dont know where to place
 
-from core.db import get_db_connection_usr
 from rich.console import Console
+
+from core.db import get_db_connection_usr
 from Workers.worker_queue import ND_queue, NDWork
 
 console = Console()
 
 
 def get_ND_token(cursor):
-    cursor.execute(
-        "SELECT ND_token FROM user WHERE ND_token IS NOT NULL LIMIT 1"
-    )
+    cursor.execute("SELECT ND_token FROM user WHERE ND_token IS NOT NULL LIMIT 1")
     row = cursor.fetchone()
 
     if row:
@@ -19,11 +18,16 @@ def get_ND_token(cursor):
     return ""
 
 
-def fetch_ND_users(cursor):
+def fetch_ND_users(cursor, token=None):
     console.print("[bold blue]\\[USER SYNC] Fetching Navidrome Users")
-    response = ND_queue.addWork(
-        NDWork(method="get", endpoint="/api/user", token=get_ND_token(cursor))
-    )
+    if token:
+        response = ND_queue.addWork(
+            NDWork(method="get", endpoint="/api/user", token=token)
+        )
+    else:
+        response = ND_queue.addWork(
+            NDWork(method="get", endpoint="/api/user", token=get_ND_token(cursor))
+        )
     return response
 
 
@@ -56,16 +60,21 @@ def save_ND_users(cursor, response):
             )
 
         except Exception as e:
-            console.print(f"[bold red]\\[USER SYNC] Database Error during sync: {e}[/bold red]")
+            console.print(
+                f"[bold red]\\[USER SYNC] Database Error during sync: {e}[/bold red]"
+            )
     else:
         console.print("[yellow]\\[USER SYNC] No users found to sync.[/yellow]")
 
 
-def sync_ND_users():
+def sync_ND_users(token=None):
     console.print("[bold blue]\\[USER SYNC] Syncing Navidrome Users")
     conn = get_db_connection_usr()
     cursor = conn.cursor()
-    users = fetch_ND_users(cursor)
+    if token:
+        users = fetch_ND_users(cursor, token)
+    else:
+        users = fetch_ND_users(cursor)
     save_ND_users(cursor, users)
     conn.commit()
     conn.close()

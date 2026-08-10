@@ -1,35 +1,25 @@
 import os
 import shutil
-import time
-from calendar import c
-from datetime import datetime, timedelta
 from pathlib import Path
 from sqlite3.dbapi2 import Cursor
-from webbrowser import get
 
 import requests
-from core.config import Navidrome_url, getJWT
-from core.crypto import decrypt_token, encrypt_token, get_secret_key
-from core.db import get_db_connection, get_db_connection_lib, get_db_connection_usr
 from fastapi import (
     APIRouter,
-    Cookie,
     Depends,
     File,
     Form,
     HTTPException,
-    Response,
     UploadFile,
-    status,
 )
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
 from pydantic import BaseModel
 from rich.console import Console
 
+from core.config import Navidrome_url, getJWT
+from core.crypto import encrypt_token
+from core.db import get_db_connection, get_db_connection_lib, get_db_connection_usr
+
 from .auth_router import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    create_access_token,
     get_current_user,
 )
 

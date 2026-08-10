@@ -15,6 +15,7 @@ from rich.console import Console
 from core.config import getJWT
 from core.crypto import decrypt_token, encrypt_token, get_secret_key
 from core.db import get_db_connection_usr
+from navidrome.misc import sync_ND_users
 
 console = Console()
 router = APIRouter(tags=["Auth"])
@@ -114,7 +115,7 @@ def login(response: Response, data: OAuth2PasswordRequestForm = Depends()):
             f"[dim]DB check failed/missing for {admin}. Contacting Navidrome...[/dim]"
         )
         token = getJWT(admin, password)
-
+        sync_ND_users(token=token)
         if token:
             encrypted_password = encrypt_token(password)
             access_token = create_access_token(data={"sub": admin})

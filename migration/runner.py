@@ -6,6 +6,9 @@
 
 import re
 
+from packaging.version import Version
+from rich.console import Console
+
 from core.crypto import decrypt_token
 from core.db import get_db_connection_lib, get_db_connection_usr
 from migration.v_0_63_2 import (
@@ -16,8 +19,6 @@ from migration.v_0_63_2 import (
     start_librarySync,
     v_0_63_2_migrate,
 )
-from packaging.version import Version
-from rich.console import Console
 from Workers.worker_queue import ND_queue, NDWork
 
 console = Console()
@@ -25,18 +26,19 @@ console = Console()
 
 # we can get server version from any user
 def getUser(cursor):
-    cursor.execute("SELECT username , password from user limit 1")
+    cursor.execute("SELECT username , password from user where password is not null limit 1")
     return cursor.fetchone()
 
 
 def get_server_version(cursor) -> str:
 
     user = getUser(cursor)
+    # print(user)
     if user:
         console.print("[bold purple]\\[migration](runner):: Fetching Server Version ::")
         password = decrypt_token(user["password"])
         username = user["username"]
-
+        # print(username, password)
         response = ND_queue.addWork(
             NDWork(
                 method="get",
@@ -48,13 +50,7 @@ def get_server_version(cursor) -> str:
             .get("subsonic-response", "")
             .get("serverVersion", "")
         )
-        # import re
-        # print(server_version)
-        # if server_version == "" or server_version == " ":
-        #     server_version= '0.0.0'
-
         sversion = re.sub(r"[^0-9.].*$", "", server_version)
-        # sversion = server_version.partition("(")[0].strip()
         console.print(
             f"[bold green]\\[migration](runner):: Server Version :: {sversion}"
         )
@@ -68,8 +64,7 @@ def run_migration_v_0_63_2():
     console.print("[bold purple]\\[migration](runner):: Running Migration v0.63.2 ::")
     conn = get_db_connection_usr()
     cursor = conn.cursor()
-    # print(get_server_version(cursor))
-    sv= get_server_version(cursor)
+    sv = get_server_version(cursor)
     if not sv.strip():
         sv = "0.0.0"
     version = Version(sv)

@@ -1,4 +1,18 @@
 # Changelog 
+
+## 11th August 2026
+
+### Bug:
+- Ugghhh!! why is there always a bug. 
+- when fetching password from database, it returns user without password causing it to crash the decrypt function.
+
+### Fixed:
+- fixed by adding `where password is not null` in query
+
+### Changes:
+- Added gaurd in `decryptToken` to check is the token is none
+
+
 ## 10th August 2026
 
 ### Bug:

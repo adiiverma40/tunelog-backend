@@ -47,7 +47,9 @@ def encrypt_token(raw_token: str) -> str:
     return encrypted_bytes.decode("utf-8")
 
 
-def decrypt_token(encrypted_token: str) -> str:
+def decrypt_token(encrypted_token: str) -> str | None:
+    if not encrypted_token:
+        return None
     encrypted_bytes = encrypted_token.encode("utf-8")
     decrypted_bytes = _get_cipher_suite().decrypt(encrypted_bytes)
     return decrypted_bytes.decode("utf-8")

@@ -3,9 +3,10 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from navidrome.state import _subscribers, notification_status, save_config, tune_config
 from pydantic import BaseModel
 from rich.console import Console
+
+from navidrome.state import _subscribers, notification_status, save_config, tune_config
 
 from .auth_router import get_current_user
 
@@ -24,7 +25,7 @@ class configData(BaseModel):
 
 @router.get("/api/ping")
 def ping(current_user: str = Depends(get_current_user)):
-    return {"status": "OK", "user": current_user}
+    return {"status": "OK", "username": current_user}
 
 
 @router.get("/api/config")

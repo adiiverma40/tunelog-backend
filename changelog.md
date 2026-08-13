@@ -1,5 +1,16 @@
 # Changelog 
 
+## 13th August 2026
+
+### Bug:
+- 
+
+### Fixed:
+- 
+
+### Changes:
+- changed the response structure for auth routes to include current username
+
 ## 11th August 2026
 
 ### Bug:

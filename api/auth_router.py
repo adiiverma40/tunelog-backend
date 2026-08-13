@@ -105,6 +105,7 @@ def login(response: Response, data: OAuth2PasswordRequestForm = Depends()):
                     return {
                         "status": "success",
                         "message": "Login successful via local DB",
+                        "username": admin
                     }
             except Exception:
                 console.log(
@@ -140,6 +141,7 @@ def login(response: Response, data: OAuth2PasswordRequestForm = Depends()):
             return {
                 "status": "success",
                 "message": "Login successful via Navidrome",
+                "username": admin
             }
         else:
             return {"status": "failed", "message": "Invalid Credentials"}

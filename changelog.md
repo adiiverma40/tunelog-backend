@@ -9,6 +9,8 @@
 ### Fixed:
 - discovery playlist taking user_id into account
 
+### Changes:
+- created new branch
 
 ## 13th August 2026
 

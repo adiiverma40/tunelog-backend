@@ -2,10 +2,11 @@ import random
 import re
 from datetime import datetime, timedelta, timezone
 
-from core.db import DB_PATH_LOG, get_db_connection_lib
-from misc.misc import log_pool
 from rich.console import Console
 from rich.table import Table
+
+from core.db import DB_PATH_LOG, get_db_connection_lib
+from misc.misc import log_pool
 
 from .base_playlist import analyze_user_ratios
 
@@ -77,6 +78,7 @@ def get_discovery_pool(
     backtrack: bool,
     explicit_filter="notExplicit",
     pool_limit: int = 1000,
+    user_id: str = "",
 ) -> tuple[list, bool, int]:
 
     metrics = {"filter_calls": 0, "backtrack_loops": 0}
@@ -100,24 +102,25 @@ def get_discovery_pool(
 
             print(f"[Discovery] SQL comparing: {db_start} → {db_end}")
 
-            cursor.execute(
+            songs = cursor.execute(
                 """
                 SELECT lib.song_id, lib.title, lib.created, lib.genre
                 FROM library lib
                 WHERE NOT EXISTS (
                     SELECT 1
                     FROM history_db.listens hist
-                    WHERE hist.song_id = lib.song_id
+                    WHERE hist.song_id = lib.song_id 
+                    AND hist.user_id = ?
                 )
                 AND substr(lib.created, 1, 27) >= ?
                 AND substr(lib.created, 1, 27) <= ?
                 ORDER BY lib.created DESC
                 LIMIT ?
             """,
-                (db_start, db_end, pool_limit),
+                (user_id, db_start, db_end, pool_limit),
             )
 
-            rows = [dict(row) for row in cursor.fetchall()]
+            rows = [dict(row) for row in songs.fetchall()]
             print(f"[Discovery] filter_pool() → {len(rows)} rows")
             return rows
 
@@ -136,7 +139,7 @@ def get_discovery_pool(
             result_is_backtracked = True
             metrics["backtrack_loops"] += 1
             print("[Discovery] Pool too small, running backtrack query...")
-            cursor.execute(
+            x = cursor.execute(
                 """
                 SELECT lib.song_id, lib.title, lib.created, lib.genre
                 FROM library lib
@@ -144,15 +147,16 @@ def get_discovery_pool(
                     SELECT 1
                     FROM history_db.listens hist
                     WHERE hist.song_id = lib.song_id
+                    AND hist.user_id = ?
                 )
                 ORDER BY lib.created DESC
                 LIMIT ?
             """,
-                (pool_limit,),
+                (user_id, pool_limit),
             )
 
             seen_ids = {row["song_id"] for row in pool}
-            backtrack_songs = [dict(row) for row in cursor.fetchall()]
+            backtrack_songs = [dict(row) for row in x.fetchall()]
             new_songs = [s for s in backtrack_songs if s["song_id"] not in seen_ids]
             pool += new_songs
             pool = pool[:pool_limit]

@@ -2,6 +2,10 @@ import json
 from ast import Store
 
 import requests
+from fastapi import params
+from numpy._core.numeric import e
+from rich.console import Console
+
 from core.config import build_url_for_user, getAllUser
 from core.db import (
     get_db_connection,
@@ -9,11 +13,8 @@ from core.db import (
     get_db_connection_playlist,
     get_db_connection_usr,
 )
-from fastapi import params
 from misc.misc import log
 from navidrome.state import notification_status
-from numpy._core.numeric import e
-from rich.console import Console
 
 console = Console(log_path=False, log_time=False)
 

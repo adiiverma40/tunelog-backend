@@ -3,8 +3,9 @@ import os
 import sqlite3
 import time
 
-from navidrome.state import status_registry
 from rich.console import Console
+
+from navidrome.state import status_registry
 
 console = Console()
 
@@ -127,7 +128,7 @@ def init_db():
             "song_id": "TEXT NOT NULL",
             "timeout": "TIMESTAMP",
             "user_id": "TEXT DEFAULT 'default'",
-            "reason": "TEXT"
+            "reason": "TEXT",
         },
     )
     _ensure_columns(
@@ -162,7 +163,7 @@ def init_db():
             "signal": "TEXT",
             "timestamp": "DATETIME DEFAULT CURRENT_TIMESTAMP",
             "user_id": "TEXT DEFAULT 'default'",
-            "score" : "INTEGER"
+            "score": "INTEGER",
         },
     )
 
@@ -178,7 +179,6 @@ def init_db():
 
     conn.commit()
     conn.close()
-
 
 
 def init_db_lib():
@@ -231,11 +231,11 @@ def init_db_lib():
         cursor,
         "synced_tracks",
         {
-            "mbzRecordingID"  :    "TEXT NOT NULL",
-            "songId"          :    "TEXT NOT NULL PRIMARY KEY",
-            "starred"        :       "BOOL",
-            "last_synced"    : "INTEGER",
-            "done"          :  "bool"
+            "mbzRecordingID": "TEXT NOT NULL",
+            "songId": "TEXT NOT NULL PRIMARY KEY",
+            "starred": "BOOL",
+            "last_synced": "INTEGER",
+            "done": "bool",
         },
     )
 
@@ -255,9 +255,9 @@ def init_db_lib():
             "last_synced": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
             "created": "TIMESTAMP",
             "explicit": "TEXT",
-            "path" : "TEXT",
-            "starred" : "BOOL",
-            "mbzRecordingID" : "TEXT"
+            "path": "TEXT",
+            "starred": "BOOL",
+            "mbzRecordingID": "TEXT",
         },
     )
     _ensure_columns(
@@ -336,7 +336,7 @@ def init_db_usr():
             "playlistIds": "TEXT",
             "LB_token": "TEXT",
             "LB_username": "TEXT",
-            "ND_token" : "TEXT"
+            "ND_token": "TEXT",
         },
     )
 
@@ -495,7 +495,6 @@ def migrate_playlist_primary_key():
         console.print(f"[red]Playlist migration error: {e}[/red]")
     conn.commit()
     conn.close()
-
 
 
 def init_db_MB():

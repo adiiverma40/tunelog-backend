@@ -634,6 +634,7 @@ def main():
                             window_end=window_end,
                             size=size,
                             backtrack=True,
+                            user_id=user,
                         )
                         final_ids, disc_signals = build_discovery_playlist(
                             pool,

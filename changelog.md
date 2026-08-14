@@ -1,5 +1,15 @@
 # Changelog 
 
+
+## 14th August 2026
+
+### Bug:
+- discovery playlist not taking user_id into account
+
+### Fixed:
+- discovery playlist taking user_id into account
+
+
 ## 13th August 2026
 
 ### Bug:

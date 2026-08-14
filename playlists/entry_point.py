@@ -27,13 +27,13 @@ def run_blend(
 
 
 def run_discovery(
-    user_id,
-    size,
+    user_id : str,
+    size : int,
     date_from=None,
     date_to=None,
     days_from=None,
     days_to=None,
-    backtrack=True,
+    backtrack : bool=True,
 ):
     window_start, window_end = resolve_date_window(
         date_from, date_to, days_from, days_to
@@ -42,7 +42,8 @@ def run_discovery(
     alias_to_cat = get_translation_maps(readJSON())
 
     pool, backtracked, days_back = get_discovery_pool(
-        window_start, window_end, size, backtrack
+        window_start, window_end, size, backtrack , user_id=user_id
+
     )
     song_ids, song_signals = build_discovery_playlist(
         pool, history, user_id, size, alias_to_cat

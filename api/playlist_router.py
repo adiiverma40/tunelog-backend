@@ -3,11 +3,14 @@ from datetime import timedelta
 from profile import run
 from typing import Optional
 
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from rich.console import Console
+
 from core.db import (
     get_db_connection_playlist,
     get_db_connection_usr,
 )
-from fastapi import APIRouter, Depends
 from metadata.genre import readJson as readJSON
 from playlists.base_playlist import (
     API_push_playlist,
@@ -30,8 +33,6 @@ from playlists.discovery_playlist import (
     resolve_date_window,
 )
 from playlists.entry_point import run_tier
-from pydantic import BaseModel
-from rich.console import Console
 
 from .auth_router import get_current_user
 
@@ -232,7 +233,7 @@ def generateDiscoveryQueue(data: DiscoveryQueueModel):
         return {"status": "error", "reason": str(e), "songs": [], "total": 0}
     library, history = getDataFromDb()
     pool, did_backtrack, days_backtracked = get_discovery_pool(
-        window_start, window_end, data.size, data.backtrack
+        window_start, window_end, data.size, data.backtrack, user_id=data.username
     )
     alias_to_cat = get_translation_maps(readJSON())
     final_ids, song_signals = build_discovery_playlist(

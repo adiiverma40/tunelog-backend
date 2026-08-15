@@ -3,13 +3,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from core.crypto import decrypt_token
-from core.db import (
-    DB_PATH_MB,
-    get_db_connection_lib,
-    get_db_connection_Musicbrainz,
-    get_db_connection_usr,
-)
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
@@ -23,6 +16,14 @@ from rich.progress import (
 )
 from rich.table import Table
 from rich.text import Text
+
+from core.crypto import decrypt_token
+from core.db import (
+    DB_PATH_MB,
+    get_db_connection_lib,
+    get_db_connection_Musicbrainz,
+    get_db_connection_usr,
+)
 from scrobble.listenBrainz import batchMatchNavidromeTracks
 from Workers.worker_queue import LB_queue, MB_queue, MBWork, lbWork
 
@@ -321,7 +322,7 @@ def fetchPendingSongs(limit: int | None = None):
 def handle_mb_success(raw_data: dict, mbid: str):
     """Fired by the worker when it gets a 200 OK from MusicBrainz."""
     console.print(f"  [green]✓[/green] [dim]{mbid[:8]}…[/dim] [white]Fetching…[/white]")
-    
+
     parsed = parse_recording(raw_data) if raw_data else None
     conn = get_db_connection_Musicbrainz()
 
@@ -845,8 +846,9 @@ def fetch_top_similar_user(lb_username: str, decrypted_token: str) -> str | None
             work=lbWork(method="GET", endpoint=url, token=decrypted_token)
         )
 
-        if r.status_code == 200:
-            payload = r.json().get("payload", [])
+        if r.get("status") == "success":
+            payload = r.get("data", {}).get("payload", [])
+
             if not payload:
                 console.print(
                     f"  [yellow]⚠ No similar users found for '{lb_username}'[/yellow]"
@@ -863,15 +865,15 @@ def fetch_top_similar_user(lb_username: str, decrypted_token: str) -> str | None
             )
             return top_username
 
-        elif r.status_code == 404:
+        elif r.get("status_code") == 404:
             console.print(
                 f"  [yellow]⚠ No similar users data for '{lb_username}' (404)[/yellow]"
             )
             return None
         else:
             console.print(
-                f"  [red]✗ similar-users returned HTTP {r.status_code}: "
-                f"{r.text[:200]}[/red]"
+                f"  [red]✗ similar-users returned HTTP {r.get('status_code')}: "
+                f"{r.get('error_msg', 'Unknown error')}[/red]"
             )
             return None
 

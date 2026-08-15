@@ -5,15 +5,16 @@ import time
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
-from core.crypto import decrypt_token
-from core.db import get_db_connection, get_db_connection_lib, get_db_connection_usr
-from CORN.SongScoring import songScoringCorn
-from navidrome.state import tune_config
 from rapidfuzz import fuzz, process
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich.rule import Rule
+
+from core.crypto import decrypt_token
+from core.db import get_db_connection, get_db_connection_lib, get_db_connection_usr
+
+# from CORN.SongScoring import songScoringCorn
+from navidrome.state import tune_config
 from Workers.worker_queue import LB_queue, lbWork
 
 console = Console()

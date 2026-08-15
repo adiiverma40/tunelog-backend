@@ -1,5 +1,15 @@
 # Changelog 
 
+## 15th August 2026
+**Happy independence day!**
+
+### Bug:
+- LB_worker uses issue, 
+
+### Bug fix:
+- Updating listenbrainz playlist to get listenbrainz cf with worker, using `.get()` for dict, instead of json way.
+
+
 
 ## 14th August 2026
 
@@ -9,6 +19,8 @@
 ### Fixed:
 - discovery playlist taking user_id into account
 
+### Changes:
+- created new branch
 
 ## 13th August 2026
 

@@ -1,9 +1,9 @@
 import queue
 import time
-from curses import ERR
 
 import requests
 from rich.console import Console
+
 from Workers.worker_queue import LB_queue
 
 console = Console()
@@ -30,7 +30,6 @@ def method_get(work, session):
             headers=get_authed_headers(work.token),
             timeout=15,
         )
-
         r.raise_for_status()
 
         headers = r.headers
@@ -104,9 +103,7 @@ def method_post(work, session):
 
 
 def LB_Worker():
-    console.print(
-        "[bold blue][WORKER][ListenBrainz]Starting Worker[/bold blue]"
-    )
+    console.print("[bold blue][WORKER][ListenBrainz]Starting Worker[/bold blue]")
     session = requests.Session()
     timeout = 600
 
@@ -151,7 +148,9 @@ def LB_Worker():
                             f"[red]✗ Task exhausted {work.max_retries} retries.[/red]"
                         )
         except queue.Empty:
-            console.print(f'[bold red][WORKER][Listenbrainz](ERR) The queue is empty for {timeout}sec. Exiting ')
+            console.print(
+                f"[bold red][WORKER][Listenbrainz](ERR) The queue is empty for {timeout}sec. Exiting "
+            )
             break
         except Exception as e:
             console.print(f"[bold red][LB WORKER] (ERR) : {e}")

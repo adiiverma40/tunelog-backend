@@ -5,29 +5,29 @@ import sys
 from datetime import datetime
 
 import requests
-from core.config import build_url_for_user, getAllUser
-from core.db import db_supervisor, get_db_connection, get_db_connection_lib
 from loguru import logger
-from misc.timeout import timeout_song
-from navidrome.state import notification_status, status_registry, tune_config
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from core.config import build_url_for_user, getAllUser
+from core.db import db_supervisor, get_db_connection, get_db_connection_lib
+from misc.timeout import timeout_song
+from navidrome.state import notification_status, status_registry, tune_config
+
 console = Console()
 
 
-LOG_MAX_SIZE = os.getenv("LOG_MAX_SIZE", "10 MB")
-LOG_RETENTION = os.getenv("LOG_RETENTION_DAYS", "7 days")
-LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
+if os.path.exists("/app/data"):
+    log_dir = "/app/logs"
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    log_dir = os.path.join(BASE_DIR, "logs")
 
-LOG_DIR = os.getenv("LOG_DIR", "/app/logs")
+LOG_DIR = os.getenv("LOG_DIR", log_dir)
 MAIN_LOG_FILE = os.path.join(LOG_DIR, "main.log")
 PLAYLIST_LOG_FILE = os.path.join(LOG_DIR, "playlist.jsonl")
-
 os.makedirs(LOG_DIR, exist_ok=True)
-
-
 star_map = {
     "skip": -2.0,
     "partial": 0.5,

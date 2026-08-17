@@ -1,5 +1,10 @@
 # Changelog 
 
+## 18th August 2026
+
+### Changes:
+- Support for manual installation
+
 ## 15th August 2026
 **Happy independence day!**
 

@@ -16,7 +16,13 @@ def get_secret_key() -> str:
     if _MASTER_KEY is not None:
         return _MASTER_KEY
 
-    KEY_FILE_PATH = "/app/data/master.key"
+    # KEY_FILE_PATH = "/app/data/master.key"
+    if os.path.exists("/app/data"):
+        KEY_FILE_PATH = "/app/data/master.key"
+    else:
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        KEY_FILE_PATH = os.path.join(BASE_DIR, "data", "master.key")
+
     _MASTER_KEY = os.getenv("MASTER_KEY")
 
     if not _MASTER_KEY:

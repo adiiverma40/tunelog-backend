@@ -4,7 +4,7 @@
 **Happy independence day!**
 
 ### Bug:
-- LB_worker uses issue, 
+- LB_worker uses issue,   dafsfd
 
 ### Bug fix:
 - Updating listenbrainz playlist to get listenbrainz cf with worker, using `.get()` for dict, instead of json way.

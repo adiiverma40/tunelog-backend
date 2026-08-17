@@ -21,7 +21,22 @@ LOG_MAX_SIZE = os.getenv("LOG_MAX_SIZE", "10 MB")
 LOG_RETENTION = os.getenv("LOG_RETENTION_DAYS", "7 days")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
 
-LOG_DIR = os.getenv("LOG_DIR", "/app/logs")
+if os.path.exists("/app/data"):
+    log_dir = "/app/logs"
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    log_dir = os.path.join(BASE_DIR, "logs")
+
+LOG_DIR = os.getenv("LOG_DIR", log_dir)
+
+try:
+    os.makedirs(LOG_DIR, exist_ok=True)
+except PermissionError:
+    LOG_DIR = log_dir
+    os.makedirs(LOG_DIR, exist_ok=True)
+
+    
+# LOG_DIR = os.getenv("LOG_DIR", "/app/logs")
 MAIN_LOG_FILE = os.path.join(LOG_DIR, "main.log")
 PLAYLIST_LOG_FILE = os.path.join(LOG_DIR, "playlist.jsonl")
 

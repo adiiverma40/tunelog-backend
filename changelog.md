@@ -1,10 +1,15 @@
 # Changelog 
 
+## 18th August 2026
+
+### Changes:
+- Support for manual installation
+
 ## 15th August 2026
 **Happy independence day!**
 
 ### Bug:
-- LB_worker uses issue, 
+- LB_worker uses issue,   dafsfd
 
 ### Bug fix:
 - Updating listenbrainz playlist to get listenbrainz cf with worker, using `.get()` for dict, instead of json way.

@@ -1,12 +1,12 @@
 # Changelog 
 
-## [unreleased]
+## 1.1.0
 
 ### Bug Fix: 
 - bad substitution: github action returned bad substitution error, fixed it. 
 
 ### Changes:
-- Added a python script to updated `[unreleased]` to the exact version
+- Added a python script to updated `1.1.0` to the exact version
 - updated `publish-ghcr.yaml` to get release note from python script
 - Deleted `test.py` it was no longer used
 

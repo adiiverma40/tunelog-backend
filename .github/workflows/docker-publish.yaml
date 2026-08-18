@@ -1,13 +1,11 @@
 name: Docker
 
 on:
-  schedule:
-    - cron: '0 20 1 * *'
-  push:
-    branches: ["main"]
-    tags: ["v*.*.*"]
-  pull_request:
-    branches: ["main"]
+  workflow_call:
+    inputs:
+      app_version:
+        type: string
+        required: true
 
 env:
   REGISTRY: ghcr.io
@@ -56,6 +54,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ inputs.app_version }}
+            type=raw,value=latest
+            type=raw,value=main
 
       - name: Build and push by digest
         id: build
@@ -68,6 +70,8 @@ jobs:
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            APP_VERSION=${{ inputs.app_version }}
 
       - name: Export digest
         if: github.event_name != 'pull_request'
@@ -120,6 +124,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ inputs.app_version }}
+            type=raw,value=latest
+            type=raw,value=main
 
       - name: Create and push multi-platform manifest
         working-directory: /tmp/digests/backend
@@ -138,8 +146,6 @@ jobs:
 
           echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-
-
   Publish-tunelog:
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
@@ -150,7 +156,7 @@ jobs:
       - name: Install crane
         uses: iarekylew00t/crane-installer@v4
 
-      - name: Login docker 
+      - name: Login docker
         run: crane auth login ghcr.io -u adiiverma40 -p ${{ secrets.PAT }}
 
       - name: Extract Docker metadata
@@ -158,9 +164,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ inputs.app_version }}
+            type=raw,value=latest
+            type=raw,value=main
 
       - name: push docker package
         run: |
-          crane copy ghcr.io/adiiverma40/tunelog-backend/backend:${{ steps.meta.outputs.version }} ghcr.io/adiiverma40/tunelog/backend:${{ steps.meta.outputs.version }}
+          crane copy ghcr.io/adiiverma40/tunelog-backend/backend:${{ inputs.app_version }} ghcr.io/adiiverma40/tunelog/backend:${{ inputs.app_version }}
 
-          crane copy ghcr.io/adiiverma40/tunelog-backend/backend:${{ steps.meta.outputs.version }} ghcr.io/adiiverma40/tunelog/backend:latest
+          crane copy ghcr.io/adiiverma40/tunelog-backend/backend:${{ inputs.app_version }} ghcr.io/adiiverma40/tunelog/backend:latest

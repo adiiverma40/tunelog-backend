@@ -5,7 +5,7 @@
 ### Changes:
 - Github publish and versioning 
 - child workflow permission error \
-
+- fetch-depth: 0 to avoid shallow clone
 
 
 ## 18th August 2026

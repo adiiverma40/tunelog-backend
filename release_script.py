@@ -1,5 +1,7 @@
+import sys
+
 import fire
-import sys 
+
 changelog_path = "./changelog.md"
 
 
@@ -10,14 +12,14 @@ def note(v="0.0.0"):
         changelog = f.read()
 
         for line in changelog.split("\n"):
-            if "[unreleased]" in line.lower():
+            if "[unreleased]" in line.lower() or f"{v}" in line:
                 isNote = True
                 line = line.replace("[unreleased]", f"{v}")
             if isNote:
                 note += line + "\n"
             if "---" in line:
                 break
-    # print(note)
+
     sys.stdout.write(note.strip())
 
 

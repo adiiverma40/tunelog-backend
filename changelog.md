@@ -2,6 +2,7 @@
 
 ## 1.1.2
 
+
 ### Bug Fix: 
 - bad substitution: github action returned bad substitution error, fixed it. 
 - bad release note styling, fixed or tried to 

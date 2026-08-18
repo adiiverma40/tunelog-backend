@@ -1,5 +1,26 @@
 # Changelog 
 
+## [unreleased]
+
+### Bug Fix: 
+- bad substitution: github action returned bad substitution error, fixed it. 
+- bad release note styling, fixed or tried to 
+- standard python print didnt gave the expected output. Trying sys.stdout.write instead.
+
+### Changes:
+- Added a python script to updated `1.1.0` to the exact version
+- updated `publish-ghcr.yaml` to get release note from python script
+- Deleted `test.py` it was no longer used
+- Github publish and versioning 
+- child workflow permission error 
+- fetch-depth: 0 to avoid shallow clone
+- switching to cycjimmy/semantic-release-action@v4
+- token permision error during chekout
+- node error, package.json
+- Added APP_VERSION env var to Dockerfile
+
+---
+
 ## 1.1.1
 
 ### Bug Fix: 

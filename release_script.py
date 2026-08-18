@@ -1,5 +1,5 @@
 import fire
-
+import sys 
 changelog_path = "./changelog.md"
 
 
@@ -17,7 +17,8 @@ def note(v="0.0.0"):
                 note += line + "\n"
             if "---" in line:
                 break
-    print(note)
+    # print(note)
+    sys.stdout.write(note.strip())
 
 
 def postCleanup(v: str = "0.0.0"):

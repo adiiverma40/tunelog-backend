@@ -6,7 +6,7 @@
 - Github publish and versioning 
 - child workflow permission error \
 - fetch-depth: 0 to avoid shallow clone
-
+- switching to cycjimmy/semantic-release-action@v4
 
 ## 18th August 2026
 

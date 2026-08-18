@@ -28,9 +28,9 @@ jobs:
           node-version: "lts/*"
       - name: Release
         id: release
-        uses: btnguyen2k/action-semrelease@v3
-        with:
-          github-token: ${{ secrets.PAT }}
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
 
   publish-docker:
     needs: [release]

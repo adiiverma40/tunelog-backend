@@ -6,7 +6,8 @@
 - Github publish and versioning 
 - child workflow permission error \
 - fetch-depth: 0 to avoid shallow clone
-- switching to cycjimmy/semantic-release-action@v4
+- switching to cycjimmy/semantic-release-action@v4\
+- token permision error during chekout
 
 ## 18th August 2026
 

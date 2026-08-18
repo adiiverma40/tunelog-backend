@@ -1,6 +1,9 @@
 # Changelog 
 
-## 1.1.2
+## [unreleased]
+
+### Bug: 
+The generateNotes job was running twice, once it fetches the changelog and then updated it and then pushed the changes back to the repository. After that it fetches back, because the clean up has already updated the `[unreleased]` in changelog it returns and empty string, resulting in empty release note. **Fixed**
 
 
 ### Bug Fix: 

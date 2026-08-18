@@ -12,7 +12,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    
+
     outputs:
       RESULT: ${{ steps.release.outputs.result }}
       VERSION: ${{ steps.release.outputs.releaseVersion }}
@@ -29,7 +29,6 @@ jobs:
         uses: btnguyen2k/action-semrelease@v3
         with:
           github-token: ${{ secrets.PAT }}
-          dry-run: true
 
   publish-docker:
     needs: [release]
@@ -37,6 +36,10 @@ jobs:
     with:
       app_version: ${{ needs.release.outputs.VERSION }}
     secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
 
   post-release:
     runs-on: ubuntu-latest

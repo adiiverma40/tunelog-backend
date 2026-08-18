@@ -37,7 +37,7 @@ jobs:
       app_version: ${{ needs.release.outputs.VERSION }}
     secrets: inherit
     permissions:
-      contents: read
+      contents: write
       packages: write
       id-token: write
 

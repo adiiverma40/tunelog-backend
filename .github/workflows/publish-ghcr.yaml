@@ -45,13 +45,13 @@ jobs:
                 "@semantic-release/git",
                 {
                   "assets": ["changelog.md"],
-                  "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+                  "message": "chore(release): ${nextRelease.version} [skip ci]"
                 }
               ]
             ]
           }
           EOF
-          
+
       - name: install dependencies
         run: pip install fire
 

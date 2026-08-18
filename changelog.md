@@ -8,6 +8,7 @@
 - fetch-depth: 0 to avoid shallow clone
 - switching to cycjimmy/semantic-release-action@v4\
 - token permision error during chekout
+- node error, package.json
 
 ## 18th August 2026
 

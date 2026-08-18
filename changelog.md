@@ -1,6 +1,6 @@
 # Changelog 
 
-## [unreleased]
+## 1.1.1
 
 ### Bug Fix: 
 - bad substitution: github action returned bad substitution error, fixed it. 

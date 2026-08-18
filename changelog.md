@@ -2,6 +2,9 @@
 
 ## [unreleased]
 
+### Bug Fix: 
+- bad substitution: github action returned bad substitution error, fixed it. 
+
 ### Changes:
 - Added a python script to updated `[unreleased]` to the exact version
 - updated `publish-ghcr.yaml` to get release note from python script

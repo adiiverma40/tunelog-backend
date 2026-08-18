@@ -28,7 +28,7 @@ jobs:
 
       - name: Configure Semantic Release
         run: |
-          cat <<EOF > .releaserc.json
+          cat << 'EOF' > .releaserc.json
           {
             "branches": ["main"],
             "plugins": [
@@ -45,12 +45,13 @@ jobs:
                 "@semantic-release/git",
                 {
                   "assets": ["changelog.md"],
-                  "message": "chore(release): \${nextRelease.version} [skip ci]\n\n\${nextRelease.notes}"
+                  "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
                 }
               ]
             ]
           }
           EOF
+          
       - name: install dependencies
         run: pip install fire
 

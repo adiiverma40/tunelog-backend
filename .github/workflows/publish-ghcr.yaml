@@ -5,7 +5,6 @@ on:
     - cron: "0 20 1 * *"
   push:
     branches: ["main"]
-    tags: ["v*.*.*"]
   pull_request:
     branches: ["main"]
 
@@ -21,12 +20,12 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT }}
-          
+
       - name: Install Node
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          
+
       - name: Configure Semantic Release
         run: |
           cat <<EOF > .releaserc.json
@@ -39,7 +38,7 @@ jobs:
             ]
           }
           EOF
-          
+
       - name: Release
         id: release
         uses: cycjimmy/semantic-release-action@v4

@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir --target=/app/deps -r requirements.txt
 FROM python:3.14.3-alpine
 
 ARG APP_VERSION=unknown
+ENV APP_VERSION=${APP_VERSION}
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

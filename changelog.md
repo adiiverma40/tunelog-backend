@@ -9,6 +9,7 @@
 - switching to cycjimmy/semantic-release-action@v4\
 - token permision error during chekout
 - node error, package.json
+- Added APP_VERSION env var to Dockerfile
 
 ## 18th August 2026
 

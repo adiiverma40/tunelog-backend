@@ -5,14 +5,15 @@ import sys
 from datetime import datetime
 
 import requests
-from core.config import build_url_for_user, getAllUser
-from core.db import db_supervisor, get_db_connection, get_db_connection_lib
 from loguru import logger
-from misc.timeout import timeout_song
-from navidrome.state import notification_status, status_registry, tune_config
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+from core.config import build_url_for_user, getAllUser
+from core.db import db_supervisor, get_db_connection, get_db_connection_lib
+from misc.timeout import timeout_song
+from navidrome.state import notification_status, status_registry, tune_config
 
 console = Console()
 
@@ -35,7 +36,7 @@ except PermissionError:
     LOG_DIR = log_dir
     os.makedirs(LOG_DIR, exist_ok=True)
 
-    
+
 # LOG_DIR = os.getenv("LOG_DIR", "/app/logs")
 MAIN_LOG_FILE = os.path.join(LOG_DIR, "main.log")
 PLAYLIST_LOG_FILE = os.path.join(LOG_DIR, "playlist.jsonl")

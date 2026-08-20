@@ -158,8 +158,10 @@ DEFAULT_CONFIG = {
     },
 }
 
-true = True
-false = False
+
+# true = True
+# false = False
+# Damn! i really hate my past self
 
 DEFAULT_AUTO_CONFIG = {
     "weekly_LB_fetch": {"last_synced": 0, "check_interval": 12},
@@ -167,16 +169,18 @@ DEFAULT_AUTO_CONFIG = {
         "size": 50,
         "heard": 25,
         "unheard": 25,
-        "unheard_genre_injection": true,
-        "heard_genre_injection": false,
+        "unheard_genre_injection": True,
+        "heard_genre_injection": False,
         "unheard_last_score": 0,
         "heard_last_score": 0,
         "auto_generate_time": 1,
+        "skip_song_if_less_score": True,
+        "skip_timeout_song": True,
         "Name": "Listenbrainz Playlist",
-        "backfill_unheard_song": true,
-        "use_blend": true,
+        "backfill_unheard_song": True,
+        "use_blend": True,
         "last_score": 0,
-        "fallbackScore": true,
+        "fallbackScore": True,
         "for_users": [],
     },
 }

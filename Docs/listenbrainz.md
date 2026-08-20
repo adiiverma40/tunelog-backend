@@ -15,31 +15,46 @@ The architeture is as follow:
 - After that, the backend uses the token to ping listenbrainz and fetch username of the entered token
 - After that, It fetches CF data from listenbrainz adn saves it in database..
 
+### Similar User CF & Data Storage
+
+In addition to the user's direct CF recommendations, the system also fetches the top similar user via the ListenBrainz API. If found, the CF recommendations for that similar user are also fetched and stored in the database using a composite key (`{db_username}__sim__{similar_username}`).
+
+### MusicBrainz Hydration
+
+Because ListenBrainz CF returns `recording_mbid`s, the system utilizes a hydration pipeline to fetch readable metadata:
+
+1. Distinct MBIDs from the `LB_CF` table are seeded into a `hydration_cache` table with a `PENDING` status.
+2. Background workers process this queue, hitting the MusicBrainz API to retrieve and parse the title, artist, album, and duration.
+3. Successfully parsed records are updated to `DONE`, while errors are marked as `FAILED` (with retry mechanisms available).
+
 ## Playlist Generation
 
 Right now, the playlist generation works with a index in mind.
 
 **Config:**
 
-```json
-{
-  "cf_playlist_config": {
-    "size": 100,
-    "heard": 50,
-    "unheard": 50,
-    "unheard_genre_injection": true,
-    "heard_genre_injection": false,
-    "unheard_last_score": 0.4249504506587982,
-    "heard_last_score": 0.6684868931770325,
-    "auto_generate_time": 1,
-    "Name": "Listenbrainz Playlist",
-    "backfill_unheard_song": true,
-    "use_blend": true,
-    "last_score": 0,
-    "fallbackScore": true,
-    "for_users": ["adii"],
-    "last_generated": 1787205915
-  }
+```python
+
+DEFAULT_AUTO_CONFIG = {
+    "weekly_LB_fetch": {"last_synced": 0, "check_interval": 12},
+    "cf_playlist_config": {
+        "size": 50,
+        "heard": 25,
+        "unheard": 25,
+        "unheard_genre_injection": True,
+        "heard_genre_injection": False,
+        "unheard_last_score": 0,
+        "heard_last_score": 0,
+        "auto_generate_time": 1,
+        'skip_song_if_less_score': False,
+        'skip_timeout_song': False,
+        "Name": "Listenbrainz Playlist",
+        "backfill_unheard_song": True,
+        "use_blend": True,
+        "last_score": 0,
+        "fallbackScore": True,
+        "for_users": [],
+    },
 }
 ```
 
@@ -54,7 +69,72 @@ Currently there are few bugs i have noticed:
 
 ### New:
 
-Currently, i will be implementing tunelog's database skipped and timeout in the playlist generation according to [Issue 3](https://github.com/adiiverma40/tunelog-backend/issues/3)
+Currently, i will be implementing tunelog's database skipped and timeout in the playlist generation according to [Issue 3](https://github.com/adiiverma40/tunelog-backend/issues/3) - Done!
+
+### Advanced Generation Features
+
+The playlist generation pipeline includes several fallback and filtering mechanisms based on the configuration:
+
+- **Genre Injection:** When `unheard_genre_injection` or `heard_genre_injection` is enabled, the system analyzes the user's listening history ratios and filters the candidate pool to ensure the generated tracks match their historical genre distribution.
+- **Cursor Wrapping:** If `fallbackScore` is set to `true` and the system exhausts the available tracks in a bucket (heard or unheard) based on the current cursor score, it will wrap around to the top scores again to fulfill the requested quota, resetting the cursor output to `0.0`.
+- **Blend Fallback:** If the ListenBrainz CF pools cannot satisfy the total requested playlist `size`, and `use_blend` is enabled, the system will backfill the remaining slots using standard local blend scores.
+- **Signal Tracking:** Tracks injected into the final playlist are tagged with internal signals for debugging and logging: `cf_heard`, `cf_unheard`, `cf_unheard_backfill`, and `cf_blend_fallback`.
+
+### Song Pool
+
+The song pool for playlist generation is in the function `fetch_cf_batch`.
+
+```python
+def fetch_cf_batch(
+    cursor,
+    user_id: str = "default",
+) -> list:
+    skip_song_if_less_score: bool = lb_cf_config.get("skip_song_if_less_score", True)
+    skip_timeout_song: bool = lb_cf_config.get("skip_timeout_song", True)
+    try:
+        cursor.execute(f"ATTACH DATABASE '{DB_PATH_LOG}' AS log_db")
+    except Exception as e:
+        pass
+
+    query = """
+        SELECT
+            lb.recording_mbid,
+            hc.nvid          AS song_id,
+            lb.score,
+            lb.latest_listened_at,
+            lib.genre,
+            lib.title
+        FROM LB_CF lb
+        JOIN mb_db.hydration_cache hc ON lb.recording_mbid = hc.recording_mbid
+        JOIN library lib              ON hc.nvid = lib.song_id
+        WHERE hc.nvid IS NOT NULL
+    """
+
+    if skip_timeout_song:
+        query += f" AND hc.nvid NOT IN (SELECT song_id FROM log_db.timeout WHERE user_id = '{user_id}')"
+
+    if skip_song_if_less_score:
+        query += (
+            " AND hc.nvid NOT IN (SELECT song_id FROM log_db.listens WHERE score < 0)"
+        )
+    query += """
+        ORDER BY lb.score DESC
+        LIMIT 500
+    """
+    cursor.execute(query)
+    results = [dict(row) for row in cursor.fetchall()]
+    try:
+        cursor.execute("DETACH DATABASE log_db")
+    except Exception:
+        pass
+    return results
+```
+
+This function work like this, 1st it fetches the settings. It attaches the tunelog database and then joins the `LB_CF` table with the `hydration_cache` table to get the song data. It then applies the skip conditions based on the settings and returns the results.
+
+This also include the tunelog database data and timeout. it is made it so that it will skip songs with score less then 0, it includes songs with score 0 as such it gives that song a chance.
+
+You can observe that there is no logic for timeouted out song to be included agains after timeout period is up, This is done because i will be implementing a cron job that will remove the timeouted out songs from the database when the period is up.
 
 # Algorithms
 
@@ -78,6 +158,7 @@ This module contains the algorithm for syncing listenbrainz history with the tun
     "last_synced": 1787209324,
     "PushLovedSongs": true
 },
+
 ```
 
 Code for `getListenBrainzResponse` function:
@@ -110,6 +191,7 @@ def getListenBrainzResponse(lb_user: Dict[str, str]) -> List[dict]:
         return listens
     else:
         return []   # no listens found since last Incremental sync
+
 ```
 
 ### **Deep History Sync**:

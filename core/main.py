@@ -54,15 +54,14 @@ from playlists.discovery_playlist import (
     get_discovery_pool,
     resolve_date_window,
 )
-from playlists.listenbrainz_playlist import (
+from playlists.listenbrainz_playlist import build_LB_CF_playlist
+from scrobble.LB.history_sync import fuzzyMatchingSong
+from scrobble.LB.lb_cf import (
     FetchCF,
-    build_LB_CF_playlist,
     fetchPendingSongs,
     fillMusicBrainzDB,
-    # match_and_update_nvid,
     retryFailedSongs,
 )
-from scrobble.LB.history_sync import fuzzyMatchingSong
 from scrobble.LB.local_matching import match_and_update_nvid
 from Workers.Luffy import Sanji
 

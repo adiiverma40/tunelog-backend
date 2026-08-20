@@ -1,5 +1,15 @@
 # Changelog 
 
+## [unreleased]
+
+### Docs:
+- Added `listenbrainz.md` to `Docs` directory for devlopers
+- Added docs for `Deep history and incremental sync`
+
+### Resturcture:
+- Changing the structure of the scrobble folder
+- Making a listenbrainz folder to put listenbrainz releated files
+
 ## 1.1.3
 
 ### Bug: 

@@ -46,10 +46,76 @@ Right now, the playlist generation works with a index in mind.
 Listenbrainz returns the cf with a score for each song. ranging from 0 to 1. `unheard_last_score` and `heard_last_score` are the last scores for unheard and heard songs respectively.
 Imagine it like a cursor, the cursor moves down systemtically. and then save it in config file.
 
-### Bugs:
+### Choices:
+
 Currently there are few bugs i have noticed:
 
 - When automatic generation is enabled, it doesnt update the cursor, i made it intentional, when i was building it i thought what if user is not listening to the song and automation generates playlist and cursor moves down making it wasteful.
 
 ### New:
+
 Currently, i will be implementing tunelog's database skipped and timeout in the playlist generation according to [Issue 3](https://github.com/adiiverma40/tunelog-backend/issues/3)
+
+# Algorithms
+
+The algorithms for listenbrainz in this project are in `Scrobble > LB` folder.
+
+## History_sync.py
+
+This module contains the algorithm for syncing listenbrainz history with the tunelog database. There are two main algorithms for history syncing.
+
+**Config.json**:
+
+```json
+"listenbrainz": {
+    "enabled": true,
+    "treat_data_as": "complete",
+    "pool_listen_brainz": 3,
+    "for_users": [
+        "adii"
+    ],
+    "dedup_window_seconds": 30,
+    "last_synced": 1787209324,
+    "PushLovedSongs": true
+},
+```
+
+Code for `getListenBrainzResponse` function:
+
+```python
+def getListenBrainzResponse(lb_user: Dict[str, str]) -> List[dict]:
+    lb_username = lb_user["lb_username"]
+    decrypted_token = lb_user["decrypted_token"]
+    last_synced_ts = listenBrainzConf.get("last_synced")
+    if not last_synced_ts:
+        return deep_history_sync(100, lb_user)  # Deep history sync
+    since = int(last_synced_ts)
+    endpoint = f"1/user/{lb_username}/listens"
+    params = {"min_ts": since, "count": 100}
+    work = lbWork(
+        method="GET",
+        endpoint=endpoint,
+        params=params,
+        username=lb_username,
+        token=decrypted_token,
+    )
+    try:
+        result = LB_queue.addWork(work=work)
+    except Exception as e:
+        return []
+    if result.get("status") != "success":
+        return []
+    listens = result.get("data", {}).get("payload", {}).get("listens", [])
+    if listens:
+        return listens
+    else:
+        return []   # no listens found since last Incremental sync
+```
+
+### **Deep History Sync**:
+
+This algorithm syncs the entire listenbrainz history with the tunelog database. It only works when the `last_synced` value is 0.
+
+### **Incremental History Sync**:
+
+This algorithm syncs only the new listens since the last sync with the tunelog database. It works when the `last_synced` value is not 0.

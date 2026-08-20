@@ -59,10 +59,11 @@ from playlists.listenbrainz_playlist import (
     build_LB_CF_playlist,
     fetchPendingSongs,
     fillMusicBrainzDB,
-    match_and_update_nvid,
+    # match_and_update_nvid,
     retryFailedSongs,
 )
-from scrobble.listenBrainz import fuzzyMatchingSong
+from scrobble.LB.history_sync import fuzzyMatchingSong
+from scrobble.LB.local_matching import match_and_update_nvid
 from Workers.Luffy import Sanji
 
 from .config import event_queue

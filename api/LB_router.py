@@ -16,7 +16,7 @@ from core.db import (
 from core.main import Auto_LB_CF, generate_listenbrainz_playlist
 from navidrome.state import automation_config, save_automation_config
 from playlists.base_playlist import API_push_playlist
-from scrobble.listenBrainz import batchMatchNavidromeTracks
+from scrobble.LB.local_matching import batchMatchNavidromeTracks
 
 from .auth_router import get_current_user
 

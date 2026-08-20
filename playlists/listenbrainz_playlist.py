@@ -1,5 +1,4 @@
 import time
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -8,7 +7,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
-    MofNCompleteColumn,
     Progress,
     SpinnerColumn,
     TextColumn,
@@ -24,48 +22,22 @@ from core.db import (
     get_db_connection_Musicbrainz,
     get_db_connection_usr,
 )
-from scrobble.listenBrainz import batchMatchNavidromeTracks
+from scrobble.LB.lb_master import resolve_lb_username
 from Workers.worker_queue import LB_queue, MB_queue, MBWork, lbWork
 
 from .base_playlist import analyze_user_ratios
 
 console = Console()
-
-LB_BASE = "https://api.listenbrainz.org"
-LB_HEADERS = {
-    "User-Agent": "TuneLog/1.0 (https://github.com/adiiverma40/tunelog; adiiverma40@gmail.com)",
-    "Accept": "application/json",
-}
+_console = Console()
 
 MAX_COUNT = 1000
 
-
-def resolve_lb_username(decrypted_token: str) -> str | None:
-    try:
-        r = LB_queue.addWork(
-            work=lbWork(
-                method="GET", endpoint="/1/validate-token", token=decrypted_token
-            )
-        )
-
-        if r.get("status_code") == 200 and r.get("status") == "success":
-            data = r.get("data", {})
-            if data.get("valid"):
-                return data.get("user_name")
-            else:
-                console.print(
-                    f"    [red]✗ Token invalid: {data.get('message', 'unknown reason')}[/red]"
-                )
-                return None
-        else:
-            console.print(
-                f"    [red]✗ validate-token returned HTTP {r.get('status_code')}: {r.get('error_msg')}[/red]"
-            )
-            return None
-
-    except Exception as e:
-        console.print(f"    [red]✗ validate-token request failed: {e}[/red]")
-        return None
+_SIGNAL_META = {
+    "cf_heard": ("Heard", "bright_cyan"),
+    "cf_unheard": ("Unheard", "bright_magenta"),
+    "cf_unheard_backfill": ("Unheard Backfill", "magenta"),
+    "cf_blend_fallback": ("Blend Fallback", "yellow"),
+}
 
 
 def fetch_cf_recordings(
@@ -157,6 +129,228 @@ def save_cf_to_db(db_username: str, mbids: list[dict], cf_last_updated: int) -> 
     conn.commit()
     conn.close()
     return len(rows)
+
+
+def fetch_top_similar_user(lb_username: str, decrypted_token: str) -> str | None:
+    url = f"/1/user/{lb_username}/similar-users"
+
+    try:
+        r = LB_queue.addWork(
+            work=lbWork(method="GET", endpoint=url, token=decrypted_token)
+        )
+
+        if r.get("status") == "success":
+            payload = r.get("data", {}).get("payload", [])
+
+            if not payload:
+                console.print(
+                    f"  [yellow]⚠ No similar users found for '{lb_username}'[/yellow]"
+                )
+                return None
+
+            top = payload[0]
+            top_username = top.get("user_name")
+            top_similarity = top.get("similarity", 0.0)
+
+            console.print(
+                f"  [green]✓ Top similar user: [bold]{top_username}[/bold] "
+                f"[dim](similarity: {top_similarity:.2%})[/dim][/green]"
+            )
+            return top_username
+
+        elif r.get("status_code") == 404:
+            console.print(
+                f"  [yellow]⚠ No similar users data for '{lb_username}' (404)[/yellow]"
+            )
+            return None
+        else:
+            console.print(
+                f"  [red]✗ similar-users returned HTTP {r.get('status_code')}: "
+                f"{r.get('error_msg', 'Unknown error')}[/red]"
+            )
+            return None
+
+    except Exception as e:
+        console.print(f"  [red]✗ similar-users request failed: {e}[/red]")
+        return None
+
+
+def FetchCF():
+    console.print(
+        Panel.fit(
+            "[bold magenta]ListenBrainz CF Recommendation Fetcher[/bold magenta]",
+            subtitle="TuneLog · multi-user",
+            box=box.DOUBLE_EDGE,
+        )
+    )
+    inserted = 0
+
+    usr_conn = get_db_connection_usr()
+    cursor = usr_conn.cursor()
+    cursor.execute(
+        "SELECT username, LB_token, LB_username FROM user WHERE LB_token IS NOT NULL AND LB_token != ''"
+    )
+    users = cursor.fetchall()
+    usr_conn.close()
+
+    if not users:
+        console.print(
+            "[yellow]⚠ No users with LB_token found in the database. Exiting.[/yellow]"
+        )
+        return
+
+    console.print(
+        f"[bold green]✓ Found {len(users)} user(s) with LB token[/bold green]\n"
+    )
+
+    summary = Table(title="Fetch Summary", box=box.SIMPLE_HEAVY, show_lines=True)
+    summary.add_column("DB User", style="cyan", no_wrap=True)
+    summary.add_column("LB User", style="magenta", no_wrap=True)
+    summary.add_column("Similar User", style="yellow", no_wrap=True)
+    summary.add_column("Own CF Saved", style="green", justify="right")
+    summary.add_column("Similar CF Saved", style="bright_yellow", justify="right")
+    summary.add_column("Status", style="bold")
+
+    for user in users:
+        db_username = user["username"]
+        raw_token = user["LB_token"]
+        stored_lb_un = user["LB_username"]
+
+        console.rule(f"[bold blue]User: {db_username}[/bold blue]")
+
+        console.print("  [dim]→ Decrypting token...[/dim]")
+        try:
+            decrypted = decrypt_token(raw_token)
+        except Exception as e:
+            console.print(f"  [red]✗ Token decryption failed: {e}[/red]")
+            summary.add_row(
+                db_username, "—", "—", "0", "0", "[red]Decrypt failed[/red]"
+            )
+            continue
+
+        console.print("  [dim]→ Validating token + resolving LB username...[/dim]")
+        lb_username = resolve_lb_username(decrypted)
+
+        if not lb_username:
+            if stored_lb_un:
+                console.print(
+                    f"  [yellow]⚠ Falling back to stored LB_username: '{stored_lb_un}'[/yellow]"
+                )
+                lb_username = stored_lb_un
+            else:
+                console.print(
+                    f"  [red]✗ Could not determine LB username for '{db_username}'. Skipping.[/red]"
+                )
+                summary.add_row(
+                    db_username, "—", "—", "0", "0", "[red]No LB username[/red]"
+                )
+                continue
+
+        console.print(
+            f"  [green]✓ LB username resolved: [bold]{lb_username}[/bold][/green]"
+        )
+
+        console.print(
+            f"  [dim]→ Fetching own CF recommendations for '{lb_username}'...[/dim]"
+        )
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task(f"  Fetching CF for {lb_username}...", total=None)
+            mbids, cf_last_updated = fetch_cf_recordings(lb_username, decrypted)
+            progress.update(task, completed=True)
+
+        own_saved = 0
+        if not mbids:
+            console.print(f"  [yellow]⚠ No own CF data for '{lb_username}'[/yellow]")
+        else:
+            console.print(
+                f"  [dim]→ Saving {len(mbids)} own CF tracks (db_user='{db_username}')...[/dim]"
+            )
+            own_saved = save_cf_to_db(db_username, mbids, cf_last_updated)
+            console.print(
+                f"  [bold green]✓ Saved {own_saved} own CF tracks for '{db_username}'[/bold green]"
+            )
+
+        console.print(
+            f"  [dim]→ Fetching top similar user for '{lb_username}'...[/dim]"
+        )
+        similar_username = fetch_top_similar_user(lb_username, decrypted)
+        similar_saved = 0
+
+        if not similar_username:
+            console.print(
+                f"  [yellow]⚠ No similar user found for '{lb_username}', skipping similar CF.[/yellow]"
+            )
+            summary.add_row(
+                db_username,
+                lb_username,
+                "—",
+                str(own_saved),
+                "0",
+                "[green]✓ Own only[/green]"
+                if own_saved
+                else "[yellow]No data[/yellow]",
+            )
+            inserted = own_saved
+            continue
+
+        console.print(
+            f"  [dim]→ Fetching CF for similar user '{similar_username}'...[/dim]"
+        )
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task(
+                f"  Fetching CF for {similar_username}...", total=None
+            )
+            sim_mbids, sim_cf_last_updated = fetch_cf_recordings(
+                similar_username, decrypted
+            )
+            progress.update(task, completed=True)
+
+        if not sim_mbids:
+            console.print(
+                f"  [yellow]⚠ No CF data for similar user '{similar_username}'[/yellow]"
+            )
+        else:
+            sim_db_key = f"{db_username}__sim__{similar_username}"
+            console.print(
+                f"  [dim]→ Saving {len(sim_mbids)} similar-user CF tracks "
+                f"(key='{sim_db_key}')...[/dim]"
+            )
+            similar_saved = save_cf_to_db(sim_db_key, sim_mbids, sim_cf_last_updated)
+            console.print(
+                f"  [bold bright_yellow]✓ Saved {similar_saved} similar-user CF tracks "
+                f"for '{similar_username}'[/bold bright_yellow]"
+            )
+
+        inserted = own_saved + similar_saved
+        summary.add_row(
+            db_username,
+            lb_username,
+            similar_username,
+            str(own_saved),
+            str(similar_saved),
+            "[green]✓ OK[/green]",
+        )
+
+    console.print()
+    console.print(summary)
+    console.print(
+        Panel.fit("[bold green]CF fetch complete.[/bold green]", box=box.ROUNDED)
+    )
+    return inserted
 
 
 def fillMusicBrainzDB():
@@ -279,6 +473,40 @@ def update_row(conn, mbid: str, parsed: dict | None):
         )
 
 
+def handle_mb_success(raw_data: dict, mbid: str):
+    console.print(f"  [green]✓[/green] [dim]{mbid[:8]}…[/dim] [white]Fetching…[/white]")
+    parsed = parse_recording(raw_data) if raw_data else None
+    conn = get_db_connection_Musicbrainz()
+
+    update_row(conn, mbid, parsed)
+    conn.commit()
+    conn.close()
+
+    if parsed:
+        artist = parsed.get("artist") or "Unknown"
+        title = parsed.get("title") or "Unknown"
+        console.print(
+            f"  [green]✓[/green] [dim]{mbid[:8]}…[/dim] [white]{artist} — {title}[/white]"
+        )
+    else:
+        console.print(f"  [red]✗[/red] [dim]{mbid[:8]}…[/dim] [red]Parse FAILED[/red]")
+
+
+def handle_mb_error(error_msg: str, mbid: str):
+    conn = get_db_connection_Musicbrainz()
+    now = datetime.utcnow().isoformat(sep=" ", timespec="seconds")
+    conn.execute(
+        "UPDATE hydration_cache SET fetch_status = 'FAILED', last_synced = ? WHERE recording_mbid = ?",
+        (now, mbid),
+    )
+    conn.commit()
+    conn.close()
+
+    console.print(
+        f"  [red]✗[/red] [dim]{mbid[:8]}…[/dim] [red]API Error: {error_msg}[/red]"
+    )
+
+
 def fetchPendingSongs(limit: int | None = None):
     conn = get_db_connection_Musicbrainz()
     cursor = conn.cursor()
@@ -319,44 +547,6 @@ def fetchPendingSongs(limit: int | None = None):
         )
 
 
-def handle_mb_success(raw_data: dict, mbid: str):
-    """Fired by the worker when it gets a 200 OK from MusicBrainz."""
-    console.print(f"  [green]✓[/green] [dim]{mbid[:8]}…[/dim] [white]Fetching…[/white]")
-
-    parsed = parse_recording(raw_data) if raw_data else None
-    conn = get_db_connection_Musicbrainz()
-
-    update_row(conn, mbid, parsed)
-    conn.commit()
-    conn.close()
-
-    if parsed:
-        artist = parsed.get("artist") or "Unknown"
-        title = parsed.get("title") or "Unknown"
-        console.print(
-            f"  [green]✓[/green] [dim]{mbid[:8]}…[/dim] [white]{artist} — {title}[/white]"
-        )
-    else:
-        console.print(f"  [red]✗[/red] [dim]{mbid[:8]}…[/dim] [red]Parse FAILED[/red]")
-
-
-def handle_mb_error(error_msg: str, mbid: str):
-    """Fired by the worker if the API times out or 404s."""
-    conn = get_db_connection_Musicbrainz()
-
-    now = datetime.utcnow().isoformat(sep=" ", timespec="seconds")
-    conn.execute(
-        "UPDATE hydration_cache SET fetch_status = 'FAILED', last_synced = ? WHERE recording_mbid = ?",
-        (now, mbid),
-    )
-    conn.commit()
-    conn.close()
-
-    console.print(
-        f"  [red]✗[/red] [dim]{mbid[:8]}…[/dim] [red]API Error: {error_msg}[/red]"
-    )
-
-
 def retryFailedSongs(max_retries: int = 3, limit: int | None = None):
     conn = get_db_connection_Musicbrainz()
     cursor = conn.cursor()
@@ -386,6 +576,8 @@ def retryFailedSongs(max_retries: int = 3, limit: int | None = None):
         [(mbid,) for mbid in failed_rows],
     )
     conn.commit()
+    conn.close()
+
     params = {"inc": "artists releases release-groups", "fmt": "json"}
 
     for index, mbid in enumerate(failed_rows, start=1):
@@ -400,139 +592,6 @@ def retryFailedSongs(max_retries: int = 3, limit: int | None = None):
                 on_error=lambda err, m_id=mbid: handle_mb_error(err, m_id),
             ),
         )
-
-
-BATCH_SIZE = 100
-
-
-@dataclass
-class _HydrationTrack:
-    title: str | None
-    artist: str | None
-    album: str | None
-    mbid: str
-
-    def model_dump(self) -> dict:
-        return {
-            "title": self.title,
-            "artist": self.artist,
-            "album": self.album,
-            "mbid": self.mbid,
-        }
-
-
-def match_and_update_nvid(batch_size: int = BATCH_SIZE):
-    conn = get_db_connection_Musicbrainz()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT recording_mbid, title, artist, album
-        FROM   hydration_cache
-        WHERE  fetch_status = 'DONE'
-          AND  nvid IS NULL
-          AND  title  IS NOT NULL
-          AND  artist IS NOT NULL
-    """)
-    rows = cursor.fetchall()
-
-    if not rows:
-        console.print(
-            "[yellow]⚠ No DONE rows without nvid found in hydration_cache.[/yellow]"
-        )
-        conn.close()
-        return
-
-    total = len(rows)
-    console.print(
-        Panel.fit(
-            f"[bold cyan]Navidrome ID Matching[/bold cyan]\n"
-            f"[white]{total} hydrated tracks to match[/white]",
-            box=box.DOUBLE_EDGE,
-        )
-    )
-
-    total_matched = 0
-    total_unmatched = 0
-    batch_num = 0
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TimeElapsedColumn(),
-        console=console,
-        refresh_per_second=4,
-    ) as progress:
-        task = progress.add_task("Matching batches…", total=total)
-
-        for offset in range(0, total, batch_size):
-            batch_rows = rows[offset : offset + batch_size]
-            batch_num += 1
-
-            tracks: List[_HydrationTrack] = [
-                _HydrationTrack(
-                    title=row["title"],
-                    artist=row["artist"],
-                    album=row["album"],
-                    mbid=row["recording_mbid"],
-                )
-                for row in batch_rows
-            ]
-
-            console.print(
-                f"\n[bold blue]Batch {batch_num} "
-                f"({offset + 1}–{min(offset + batch_size, total)} of {total})[/bold blue]"
-            )
-
-            output_tracks, matched_count = batchMatchNavidromeTracks(tracks)
-
-            unmatched_count = len(batch_rows) - matched_count
-            total_matched += matched_count
-            total_unmatched += unmatched_count
-
-            console.print(
-                f"  [green]✓ Matched : {matched_count}[/green]  "
-                f"[red]✗ Unmatched : {unmatched_count}[/red]"
-            )
-
-            updates = []
-            for track_data in output_tracks:
-                navidrome_id = track_data.get("navidrome_id")
-                mbid = track_data.get("mbid")
-                if navidrome_id and mbid:
-                    updates.append((navidrome_id, mbid))
-
-            if updates:
-                cursor.executemany(
-                    "UPDATE hydration_cache SET nvid = ? WHERE recording_mbid = ?",
-                    updates,
-                )
-                conn.commit()
-                console.print(f"  [cyan]↳ Wrote {len(updates)} nvid(s) to DB.[/cyan]")
-
-            progress.advance(task, len(batch_rows))
-
-    conn.close()
-
-    console.print(
-        Panel.fit(
-            f"[bold green]✓ Matched   : {total_matched}[/bold green]\n"
-            f"[bold red]✗ Unmatched : {total_unmatched}[/bold red]\n"
-            f"[dim]Total processed : {total}[/dim]",
-            box=box.ROUNDED,
-        )
-    )
-
-
-_console = Console()
-
-_SIGNAL_META = {
-    "cf_heard": ("Heard", "bright_cyan"),
-    "cf_unheard": ("Unheard", "bright_magenta"),
-    "cf_unheard_backfill": ("Unheard Backfill", "magenta"),
-    "cf_blend_fallback": ("Blend Fallback", "yellow"),
-}
 
 
 def _log_cf_table(
@@ -836,225 +895,3 @@ def build_LB_CF_playlist(
     )
 
     return final_ids[:size], song_signals, new_heard_score, new_unheard_score
-
-
-def fetch_top_similar_user(lb_username: str, decrypted_token: str) -> str | None:
-    url = f"/1/user/{lb_username}/similar-users"
-
-    try:
-        r = LB_queue.addWork(
-            work=lbWork(method="GET", endpoint=url, token=decrypted_token)
-        )
-
-        if r.get("status") == "success":
-            payload = r.get("data", {}).get("payload", [])
-
-            if not payload:
-                console.print(
-                    f"  [yellow]⚠ No similar users found for '{lb_username}'[/yellow]"
-                )
-                return None
-
-            top = payload[0]
-            top_username = top.get("user_name")
-            top_similarity = top.get("similarity", 0.0)
-
-            console.print(
-                f"  [green]✓ Top similar user: [bold]{top_username}[/bold] "
-                f"[dim](similarity: {top_similarity:.2%})[/dim][/green]"
-            )
-            return top_username
-
-        elif r.get("status_code") == 404:
-            console.print(
-                f"  [yellow]⚠ No similar users data for '{lb_username}' (404)[/yellow]"
-            )
-            return None
-        else:
-            console.print(
-                f"  [red]✗ similar-users returned HTTP {r.get('status_code')}: "
-                f"{r.get('error_msg', 'Unknown error')}[/red]"
-            )
-            return None
-
-    except Exception as e:
-        console.print(f"  [red]✗ similar-users request failed: {e}[/red]")
-        return None
-
-
-def FetchCF():
-    console.print(
-        Panel.fit(
-            "[bold magenta]ListenBrainz CF Recommendation Fetcher[/bold magenta]",
-            subtitle="TuneLog · multi-user",
-            box=box.DOUBLE_EDGE,
-        )
-    )
-    inserted = 0
-
-    usr_conn = get_db_connection_usr()
-    cursor = usr_conn.cursor()
-    cursor.execute(
-        "SELECT username, LB_token, LB_username FROM user WHERE LB_token IS NOT NULL AND LB_token != ''"
-    )
-    users = cursor.fetchall()
-    usr_conn.close()
-
-    if not users:
-        console.print(
-            "[yellow]⚠ No users with LB_token found in the database. Exiting.[/yellow]"
-        )
-        return
-
-    console.print(
-        f"[bold green]✓ Found {len(users)} user(s) with LB token[/bold green]\n"
-    )
-
-    summary = Table(title="Fetch Summary", box=box.SIMPLE_HEAVY, show_lines=True)
-    summary.add_column("DB User", style="cyan", no_wrap=True)
-    summary.add_column("LB User", style="magenta", no_wrap=True)
-    summary.add_column("Similar User", style="yellow", no_wrap=True)
-    summary.add_column("Own CF Saved", style="green", justify="right")
-    summary.add_column("Similar CF Saved", style="bright_yellow", justify="right")
-    summary.add_column("Status", style="bold")
-
-    for user in users:
-        db_username = user["username"]
-        raw_token = user["LB_token"]
-        stored_lb_un = user["LB_username"]
-
-        console.rule(f"[bold blue]User: {db_username}[/bold blue]")
-
-        console.print("  [dim]→ Decrypting token...[/dim]")
-        try:
-            decrypted = decrypt_token(raw_token)
-        except Exception as e:
-            console.print(f"  [red]✗ Token decryption failed: {e}[/red]")
-            summary.add_row(
-                db_username, "—", "—", "0", "0", "[red]Decrypt failed[/red]"
-            )
-            continue
-
-        console.print("  [dim]→ Validating token + resolving LB username...[/dim]")
-        lb_username = resolve_lb_username(decrypted)
-
-        if not lb_username:
-            if stored_lb_un:
-                console.print(
-                    f"  [yellow]⚠ Falling back to stored LB_username: '{stored_lb_un}'[/yellow]"
-                )
-                lb_username = stored_lb_un
-            else:
-                console.print(
-                    f"  [red]✗ Could not determine LB username for '{db_username}'. Skipping.[/red]"
-                )
-                summary.add_row(
-                    db_username, "—", "—", "0", "0", "[red]No LB username[/red]"
-                )
-                continue
-
-        console.print(
-            f"  [green]✓ LB username resolved: [bold]{lb_username}[/bold][/green]"
-        )
-
-        console.print(
-            f"  [dim]→ Fetching own CF recommendations for '{lb_username}'...[/dim]"
-        )
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TimeElapsedColumn(),
-            console=console,
-            transient=True,
-        ) as progress:
-            task = progress.add_task(f"  Fetching CF for {lb_username}...", total=None)
-            mbids, cf_last_updated = fetch_cf_recordings(lb_username, decrypted)
-            progress.update(task, completed=True)
-
-        own_saved = 0
-        if not mbids:
-            console.print(f"  [yellow]⚠ No own CF data for '{lb_username}'[/yellow]")
-        else:
-            console.print(
-                f"  [dim]→ Saving {len(mbids)} own CF tracks (db_user='{db_username}')...[/dim]"
-            )
-            own_saved = save_cf_to_db(db_username, mbids, cf_last_updated)
-            console.print(
-                f"  [bold green]✓ Saved {own_saved} own CF tracks for '{db_username}'[/bold green]"
-            )
-
-        console.print(
-            f"  [dim]→ Fetching top similar user for '{lb_username}'...[/dim]"
-        )
-        similar_username = fetch_top_similar_user(lb_username, decrypted)
-        similar_saved = 0
-
-        if not similar_username:
-            console.print(
-                f"  [yellow]⚠ No similar user found for '{lb_username}', skipping similar CF.[/yellow]"
-            )
-            summary.add_row(
-                db_username,
-                lb_username,
-                "—",
-                str(own_saved),
-                "0",
-                "[green]✓ Own only[/green]"
-                if own_saved
-                else "[yellow]No data[/yellow]",
-            )
-            inserted = own_saved
-            continue
-
-        console.print(
-            f"  [dim]→ Fetching CF for similar user '{similar_username}'...[/dim]"
-        )
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TimeElapsedColumn(),
-            console=console,
-            transient=True,
-        ) as progress:
-            task = progress.add_task(
-                f"  Fetching CF for {similar_username}...", total=None
-            )
-            sim_mbids, sim_cf_last_updated = fetch_cf_recordings(
-                similar_username, decrypted
-            )
-            progress.update(task, completed=True)
-
-        if not sim_mbids:
-            console.print(
-                f"  [yellow]⚠ No CF data for similar user '{similar_username}'[/yellow]"
-            )
-        else:
-            sim_db_key = f"{db_username}__sim__{similar_username}"
-            console.print(
-                f"  [dim]→ Saving {len(sim_mbids)} similar-user CF tracks "
-                f"(key='{sim_db_key}')...[/dim]"
-            )
-            similar_saved = save_cf_to_db(sim_db_key, sim_mbids, sim_cf_last_updated)
-            console.print(
-                f"  [bold bright_yellow]✓ Saved {similar_saved} similar-user CF tracks "
-                f"for '{similar_username}'[/bold bright_yellow]"
-            )
-
-        inserted = own_saved + similar_saved
-        summary.add_row(
-            db_username,
-            lb_username,
-            similar_username,
-            str(own_saved),
-            str(similar_saved),
-            "[green]✓ OK[/green]",
-        )
-
-    console.print()
-    console.print(summary)
-    console.print(
-        Panel.fit("[bold green]CF fetch complete.[/bold green]", box=box.ROUNDED)
-    )
-    return inserted

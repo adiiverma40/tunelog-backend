@@ -31,6 +31,8 @@ If you want to change the default value and dashboard settings are not available
 - Added new config option for listenbrainz playlist.
 - Added timeout support for Listenbrainz playlist.
 
+### bugs:
+- because i wrote `Feat: ` in commit message, the release didnt got triggered..... :(
 ---
 
 ## 1.1.3

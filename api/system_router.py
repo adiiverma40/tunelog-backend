@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from rich.console import Console
 
+from misc.release_fetch import fetch_release
 from navidrome.state import _subscribers, notification_status, save_config, tune_config
 
 from .auth_router import get_current_user
@@ -75,5 +76,18 @@ async def sse_stream():
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        },
     )
+
+
+# Release
+@router.get("/system/release")
+def get_release():
+    try:
+        backend, frontend = fetch_release("api")
+        return {"backend": backend, "frontend": frontend}
+    except Exception as e:
+        return {"error": str(e)}

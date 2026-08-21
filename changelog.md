@@ -1,4 +1,25 @@
 # Changelog
+## [unreleased]
+### New Features:
+Added a function to fetch release details from github. Compare them and then show the user the latest release. So that user can update their app to the latest version.
+
+### Docs 
+- API docs boilerplate made.
+- Added index page for API and backend 
+- created a basic table for index
+- Added basic doc for release fetch
+
+### Changes:
+- Added `fetch_release` function to `release_fetch.py`
+- Added a caller for fetch_release in main function
+- Updated docs for `fetch_release` 
+- Added update endpoint for `fetch_release` at `/system/release`
+
+
+> [!important]
+> For devlopers only. I have switched from Default zed editor's python formatter to YAPF. The `.style.yapf` file is used to configure the formatter and included in the repository.
+
+---
 
 ## 1.2.0
 

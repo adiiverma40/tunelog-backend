@@ -9,7 +9,10 @@ Added a function to fetch release details from github. Compare them and then sho
 - Added index page for API and backend 
 - created a basic table for index
 - Added basic doc for release fetch
+
+### Added
 - Added a `cache` for github release. Repeadely loading or switching page the dashboard, causes github network `Rate-limit`
+
 ### Changes:
 - Added `fetch_release` function to `release_fetch.py`
 - Added a caller for fetch_release in main function

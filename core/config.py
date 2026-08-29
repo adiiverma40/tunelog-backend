@@ -6,10 +6,11 @@ from time import sleep
 from urllib.parse import urlencode
 
 import requests
-from core.db import db_supervisor, get_db_connection_usr
 from dotenv import load_dotenv
 from pandas.io.sql import DatabaseError
 from rich.console import Console
+
+from core.db import db_supervisor, get_db_connection_usr
 from Workers.worker_queue import ND_queue, NDWork
 
 console = Console()
@@ -48,15 +49,21 @@ def getJWT(admin_username=Navidrome_admin, admin_password=navidrome_password):
                 params={"username": admin_username, "password": admin_password},
             )
         )
-        
+
         if res.get("status") == "success":
             return res.get("data", {}).get("token")
-        
+
         elif res.get("status") == "error":
             error_msg = str(res.get("error_msg", ""))
-            
-            if "ConnectionError" in error_msg or "Timeout" in error_msg or "Max retries" in error_msg:
-                console.log("[yellow]Warning: Navidrome is currently unreachable.[/yellow]")
+
+            if (
+                "ConnectionError" in error_msg
+                or "Timeout" in error_msg
+                or "Max retries" in error_msg
+            ):
+                console.log(
+                    "[yellow]Warning: Navidrome is currently unreachable.[/yellow]"
+                )
             else:
                 console.log(f"[red]API Error (getJWT):[/red] {error_msg}")
             return None
@@ -66,6 +73,7 @@ def getJWT(admin_username=Navidrome_admin, admin_password=navidrome_password):
     except Exception as e:
         console.log(f"[red]Unexpected Error (getJWT):[/red] {e}")
         return None
+
 
 # default url to pull data from api
 def build_url(endpoint):

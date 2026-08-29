@@ -27,6 +27,7 @@ from CORN.SongScoring import songScoringCorn
 from metadata.itunesFuzzy import useFallBackMethods
 from metadata.library import sync_library
 from migration.runner import run_migration_v_0_63_2
+from misc.release_fetch import fetch_release
 from navidrome.auth import checkCred_SaveCred
 from navidrome.misc import sync_ND_users
 from navidrome.state import (
@@ -70,7 +71,7 @@ from .config import event_queue
 load_dotenv()
 console = Console()
 
-CURRENT_VERSION = "0.001"
+CURRENT_VERSION = "0.0.1"
 
 
 def autoSyncWithFallback():
@@ -78,21 +79,14 @@ def autoSyncWithFallback():
     library.sync_library()
 
     conn = get_db_connection_lib()
-    not_in_itunes = conn.execute(
-        "SELECT COUNT(*) FROM library WHERE explicit = 'notInItunes'"
-    ).fetchone()[0]
+    not_in_itunes = conn.execute("SELECT COUNT(*) FROM library WHERE explicit = 'notInItunes'").fetchone()[0]
     conn.close()
 
     if not_in_itunes > 0:
-        console.print(
-            f"[green]Auto sync done. {not_in_itunes} songs need fallback — starting..."
-        )
+        console.print(f"[green]Auto sync done. {not_in_itunes} songs need fallback — starting...")
 
         songs_raw = conn = (
-            get_db_connection_lib()
-            .execute("SELECT * FROM library WHERE explicit = 'notInItunes'")
-            .fetchall()
-        )
+            get_db_connection_lib().execute("SELECT * FROM library WHERE explicit = 'notInItunes'").fetchall())
         songs = [dict(s) for s in songs_raw]
 
         library._fallbackStop = False
@@ -105,14 +99,10 @@ def autoSyncWithFallback():
 
         console.print("[bold green]Fallback sync complete")
     else:
-        console.print(
-            "[bold green]Auto sync done. No notInItunes songs — skipping fallback"
-        )
+        console.print("[bold green]Auto sync done. No notInItunes songs — skipping fallback")
 
 
-MIN_SCORE: float = tune_config["api_and_performance"]["sync_confidence"][
-    "min_match_score"
-]
+MIN_SCORE: float = tune_config["api_and_performance"]["sync_confidence"]["min_match_score"]
 TRIES: int = 500
 
 
@@ -187,9 +177,7 @@ def run_lb_fuzzy_matching() -> None:
         console.print("[dim]LB Fuzzy: No unmatched entries to process.[/dim]")
         return
 
-    console.print(
-        f"[bold magenta]LB Fuzzy:[/bold magenta] Processing {len(entries)} distinct unmatched entries..."
-    )
+    console.print(f"[bold magenta]LB Fuzzy:[/bold magenta] Processing {len(entries)} distinct unmatched entries...")
 
     for entry in entries:
         raw_title = entry.get("title") or ""
@@ -219,9 +207,7 @@ def run_lb_fuzzy_matching() -> None:
                     new_artist=result.get("artist") or raw_artist,
                     new_album=result.get("album") or raw_album,
                 )
-                console.log(
-                    f"[green]LB Fuzzy: Matched[/green] (score={sc}) → {result.get('title')}"
-                )
+                console.log(f"[green]LB Fuzzy: Matched[/green] (score={sc}) → {result.get('title')}")
             else:
                 _update_entry(
                     raw_title=raw_title,
@@ -229,9 +215,7 @@ def run_lb_fuzzy_matching() -> None:
                     tag="unmatched",
                     comment=str(round(sc, 2)),
                 )
-                console.log(
-                    f"[yellow]LB Fuzzy: Low score[/yellow] ({sc}) → kept unmatched"
-                )
+                console.log(f"[yellow]LB Fuzzy: Low score[/yellow] ({sc}) → kept unmatched")
         else:
             _update_entry(
                 raw_title=raw_title,
@@ -241,9 +225,7 @@ def run_lb_fuzzy_matching() -> None:
             )
             console.log("[yellow]LB Fuzzy: No match found → kept unmatched[/yellow]")
 
-    console.print(
-        f"[bold green]LB Fuzzy: Done.[/bold green] Processed {len(entries)} distinct entries."
-    )
+    console.print(f"[bold green]LB Fuzzy: Done.[/bold green] Processed {len(entries)} distinct entries.")
 
 
 def MusicbrainzSeeding():
@@ -266,9 +248,7 @@ def musicBrainzThread():
             time.sleep(20.0)
 
             if not MusicbrainzThread.is_alive():
-                console.print(
-                    "[red]✗ Watcher failed to start:[/red] check that Navidrome is running."
-                )
+                console.print("[red]✗ Watcher failed to start:[/red] check that Navidrome is running.")
 
         except Exception as e:
             console.print(f"[red]✗ Watcher startup failed:[/red] {e}")
@@ -316,18 +296,14 @@ def generate_listenbrainz_playlist(user_id: str, saveConfig: bool = False):
     if saveConfig:
         cf_config["heard_last_score"] = new_heard_score
         cf_config["unheard_last_score"] = new_unheard_score
-        print(
-            f"[LB_CF] Saving score cursors → heard: {new_heard_score:.4f}, "
-            f"unheard: {new_unheard_score:.4f}"
-        )
+        print(f"[LB_CF] Saving score cursors → heard: {new_heard_score:.4f}, "
+              f"unheard: {new_unheard_score:.4f}")
 
     save_automation_config({"cf_playlist_config": cf_config})
 
-    print(
-        f"[LB_CF] Playlist generation complete!\n"
-        f"         Heard cursor:   {new_heard_score:.4f}\n"
-        f"         Unheard cursor: {new_unheard_score:.4f}\n"
-    )
+    print(f"[LB_CF] Playlist generation complete!\n"
+          f"         Heard cursor:   {new_heard_score:.4f}\n"
+          f"         Unheard cursor: {new_unheard_score:.4f}\n")
     return True
 
 
@@ -339,9 +315,7 @@ def autoGenerateLB_CF(current_hour: int, current_day, timezone_str: str):
 
     cf_last_run_date = None
     if cf_last_generated > 0:
-        cf_last_run_date = datetime.fromtimestamp(
-            cf_last_generated, ZoneInfo(timezone_str)
-        ).date()
+        cf_last_run_date = datetime.fromtimestamp(cf_last_generated, ZoneInfo(timezone_str)).date()
 
     if current_hour >= cf_auto_time and current_day != cf_last_run_date:
         if len(cf_users) > 0:
@@ -353,13 +327,9 @@ def autoGenerateLB_CF(current_hour: int, current_day, timezone_str: str):
                     generate_listenbrainz_playlist(user, saveConfig=False)
                     console.print(f"[green]✓ ListenBrainz CF pushed for {user}[/green]")
                 except Exception as e:
-                    console.print(
-                        f"[red]✗ ListenBrainz CF generation failed for {user}:[/red] {e}"
-                    )
+                    console.print(f"[red]✗ ListenBrainz CF generation failed for {user}:[/red] {e}")
         else:
-            console.print(
-                "[yellow]⚠ Auto CF generation skipped: no users configured in for_users.[/yellow]"
-            )
+            console.print("[yellow]⚠ Auto CF generation skipped: no users configured in for_users.[/yellow]")
         cf_config["last_generated"] = int(time.time())
         save_automation_config({"cf_playlist_config": cf_config})
 
@@ -376,17 +346,13 @@ def Auto_LB_CF(thread=True):
         if is_manual:
             console.print("[dim]Manual ListenBrainz CF fetch triggered via API.[/dim]")
         else:
-            console.print(
-                "[dim]Daily ListenBrainz CF fetch triggered (24h interval passed).[/dim]"
-            )
+            console.print("[dim]Daily ListenBrainz CF fetch triggered (24h interval passed).[/dim]")
 
         automation_config["weekly_LB_fetch"]["last_synced"] = current_unix_time
         try:
             save_automation_config(automation_config)
         except Exception as e:
-            console.print(
-                f"[red]✗ Failed to save config for weekly_LB_fetch:[/red] {e}"
-            )
+            console.print(f"[red]✗ Failed to save config for weekly_LB_fetch:[/red] {e}")
 
         def fetch_worker():
             try:
@@ -432,9 +398,8 @@ def main():
             raise
     console.print("[green]✓ Database ready[/green]")
 
-    workerThread = threading.Thread(
-        target=Sanji.Robin
-    )  # I dont think sanji and robin will end up dating, i might change the names to zoro.robin
+    workerThread = threading.Thread(target=Sanji.Robin)
+    # I dont think sanji and robin will end up dating, i might change the names to zoro.robin
     workerThread.start()
 
     console.print("[bold blue]\\[CRED] Checking users credentials")
@@ -442,24 +407,31 @@ def main():
     if cred:
         console.print("[bold blue]\\[CRED] Success!")
     else:
-        console.print(
-            "[bold red]\\[CRED] Cred is wrong, Correct the cred or some feature might not work"
-        )
+        console.print("[bold red]\\[CRED] Cred is wrong, Correct the cred or some feature might not work")
 
-    sync_ND_users()
+    sync_ND_users() # Sync navidrome users to backend database
+    fetch_release() # Fetch release from github. 
 
     with console.status("[dim]Starting API and proxy...[/dim]"):
         try:
             uvicornThread = threading.Thread(
                 target=uvicorn.run,
-                args=("api.api_entry:socket_app",),
-                kwargs={"host": "0.0.0.0", "port": frontendPort, "log_level": "debug"},
+                args=("api.api_entry:socket_app", ),
+                kwargs={
+                    "host": "0.0.0.0",
+                    "port": frontendPort,
+                    "log_level": "debug"
+                },
                 daemon=True,
             )
             ProxyThread = threading.Thread(
                 target=uvicorn.run,
-                args=("proxy.proxy:app",),
-                kwargs={"host": "0.0.0.0", "port": proxyPort, "log_level": "warning"},
+                args=("proxy.proxy:app", ),
+                kwargs={
+                    "host": "0.0.0.0",
+                    "port": proxyPort,
+                    "log_level": "warning"
+                },
                 daemon=True,
             )
             uvicornThread.start()
@@ -467,21 +439,13 @@ def main():
             time.sleep(2.0)
 
             if not ProxyThread.is_alive():
-                status_registry.update(
-                    "uvicorn", status="crashed", error="Port Conflict"
-                )
-                console.print(
-                    f"[red]✗ Proxy failed to bind:[/red] port {proxyPort} is already in use."
-                )
+                status_registry.update("uvicorn", status="crashed", error="Port Conflict")
+                console.print(f"[red]✗ Proxy failed to bind:[/red] port {proxyPort} is already in use.")
                 sys.exit(1)
 
             if not uvicornThread.is_alive():
-                status_registry.update(
-                    "uvicorn", status="crashed", error="Port Conflict"
-                )
-                console.print(
-                    "[red]✗ API failed to bind:[/red] port 8000 is already in use."
-                )
+                status_registry.update("uvicorn", status="crashed", error="Port Conflict")
+                console.print("[red]✗ API failed to bind:[/red] port 8000 is already in use.")
                 sys.exit(1)
 
             status_registry.update("uvicorn", status="running")
@@ -489,9 +453,7 @@ def main():
             status_registry.update("uvicorn", status="crashed", error=str(e))
             console.print(f"[red]✗ API/proxy startup failed:[/red] {e}")
             sys.exit(1)
-    console.print(
-        f"[green]✓ API ready on port 8000 · Proxy ready on port {proxyPort}[/green]"
-    )
+    console.print(f"[green]✓ API ready on port 8000 · Proxy ready on port {proxyPort}[/green]")
     # print("error here")
     # v_0_63_2_migrate()
     #
@@ -504,12 +466,8 @@ def main():
             Watcher()
 
             if not watcherThread.is_alive():
-                status_registry.update(
-                    "watcher", status="crashed", error="navidrome error"
-                )
-                console.print(
-                    "[red]✗ Watcher failed to start:[/red] check that Navidrome is running."
-                )
+                status_registry.update("watcher", status="crashed", error="navidrome error")
+                console.print("[red]✗ Watcher failed to start:[/red] check that Navidrome is running.")
                 sys.exit(1)
 
             status_registry.update("watcher", status="running")
@@ -568,14 +526,8 @@ def main():
         auto_sync_hour = settings["auto_sync"]
         autoGenerateLB_CF(current_hour, current_day, library._timezone)
 
-        if (
-            current_hour == auto_sync_hour
-            and current_day != last_auto_sync_day
-            and not library._isSyncing
-        ):
-            console.print(
-                f"[dim]Auto library sync triggered at {now.strftime('%H:%M')}.[/dim]"
-            )
+        if (current_hour == auto_sync_hour and current_day != last_auto_sync_day and not library._isSyncing):
+            console.print(f"[dim]Auto library sync triggered at {now.strftime('%H:%M')}.[/dim]")
             last_auto_sync_day = current_day
             syncThread = threading.Thread(target=autoSyncWithFallback, daemon=True)
             syncThread.start()
@@ -583,14 +535,9 @@ def main():
         playlistConf = tune_config["playlist_generation"]
         conf = tune_config
 
-        if (
-            playlistConf["auto_generate_playlist"]
-            and playlistConf["last_auto_generate"] != str(current_day)
-            and current_hour == playlistConf["auto_generate_time"]
-        ):
-            console.print(
-                f"[dim]Auto playlist generation triggered at {current_hour}:00.[/dim]"
-            )
+        if (playlistConf["auto_generate_playlist"] and playlistConf["last_auto_generate"] != str(current_day)
+                and current_hour == playlistConf["auto_generate_time"]):
+            console.print(f"[dim]Auto playlist generation triggered at {current_hour}:00.[/dim]")
 
             size = playlistConf["playlist_size"]
             explicit_filter = playlistConf["auto_generate_explicit"]
@@ -600,9 +547,7 @@ def main():
 
             if len(users) > 0:
                 for user in users:
-                    scores = score_song(
-                        user, history_dict=history, library_dict=library1
-                    )
+                    scores = score_song(user, history_dict=history, library_dict=library1)
                     unheard, unheard_ratio, all_time = get_unheard_songs(library1, user)
                     wildcards = get_wildcard_songs(scores, user)
                     playlist, song_signals = build_playlist(
@@ -652,26 +597,16 @@ def main():
                                 newPlaylist=False,
                                 playlist_type="discovery",
                             )
-                            backtrack_note = (
-                                f", backtracked {days_backtracked}d"
-                                if did_backtrack
-                                else ""
-                            )
+                            backtrack_note = (f", backtracked {days_backtracked}d" if did_backtrack else "")
                             console.print(
                                 f"[green]✓ Discovery pushed for {user} ({len(final_ids)} songs{backtrack_note})[/green]"
                             )
                         else:
-                            console.print(
-                                f"[yellow]⚠ Discovery: no songs found for {user}[/yellow]"
-                            )
+                            console.print(f"[yellow]⚠ Discovery: no songs found for {user}[/yellow]")
                     except Exception as e:
-                        console.print(
-                            f"[red]✗ Discovery generation failed for {user}:[/red] {e}"
-                        )
+                        console.print(f"[red]✗ Discovery generation failed for {user}:[/red] {e}")
             else:
-                console.print(
-                    "[yellow]⚠ Auto generation skipped: no users configured.[/yellow]"
-                )
+                console.print("[yellow]⚠ Auto generation skipped: no users configured.[/yellow]")
 
             isGenerated = True
 
@@ -686,18 +621,12 @@ def main():
         if listenBrainzconf.get("enabled", False) and not is_lb_syncing:
             pool_time_hours = float(listenBrainzconf.get("pool_listen_brainz", 6))
             config_last_synced = listenBrainzconf.get("last_synced") or 0
-            effective_last_synced = (
-                last_lb_sync_timestamp if last_lb_sync_timestamp else config_last_synced
-            )
+            effective_last_synced = (last_lb_sync_timestamp if last_lb_sync_timestamp else config_last_synced)
             current_unix_time = int(time.time())
             seconds_threshold = pool_time_hours * 3600
 
-            if not effective_last_synced or (
-                current_unix_time - int(effective_last_synced) >= seconds_threshold
-            ):
-                console.print(
-                    f"[dim]ListenBrainz sync triggered (interval: {pool_time_hours}h).[/dim]"
-                )
+            if not effective_last_synced or (current_unix_time - int(effective_last_synced) >= seconds_threshold):
+                console.print(f"[dim]ListenBrainz sync triggered (interval: {pool_time_hours}h).[/dim]")
                 is_lb_syncing = True
                 last_lb_sync_timestamp = current_unix_time
 
@@ -706,21 +635,15 @@ def main():
                         lb_conf = tune_config.get("listenbrainz", {})
 
                         if not lb_conf.get("enabled"):
-                            console.print(
-                                "[yellow]⚠ ListenBrainz sync skipped: disabled in config.[/yellow]"
-                            )
+                            console.print("[yellow]⚠ ListenBrainz sync skipped: disabled in config.[/yellow]")
                             return
 
                         LatestTimeStamp = fuzzyMatchingSong()
 
                         if LatestTimeStamp:
-                            tune_config["listenbrainz"]["last_synced"] = int(
-                                LatestTimeStamp
-                            )
+                            tune_config["listenbrainz"]["last_synced"] = int(LatestTimeStamp)
                         else:
-                            tune_config["listenbrainz"]["last_synced"] = int(
-                                config_last_synced
-                            )
+                            tune_config["listenbrainz"]["last_synced"] = int(config_last_synced)
 
                         save_config(tune_config)
                         console.print("[green]✓ ListenBrainz sync complete.[/green]")

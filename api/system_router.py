@@ -84,10 +84,10 @@ async def sse_stream():
 
 
 # Release
-@router.get("/system/release")
+@router.get("/update/release")
 def get_release():
     try:
-        backend, frontend = fetch_release("api")
+        backend, frontend = fetch_release()
         return {"backend": backend, "frontend": frontend}
     except Exception as e:
         return {"error": str(e)}

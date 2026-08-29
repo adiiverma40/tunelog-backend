@@ -1,7 +1,10 @@
 import os
+from ast import Global
+from functools import lru_cache
 
 import requests
 from packaging.version import Version
+from requests.exceptions import RequestException
 from rich.console import Console
 
 console = Console()
@@ -14,14 +17,22 @@ def url(repo):
     return f"https://api.github.com/repos/{repo}/releases/latest"
 
 
+@lru_cache(maxsize=1)
 def fetch_release_git():
     url_frontend = url("adiiverma40/tunelog-frontend")
     url_backend = url("adiiverma40/tunelog-backend")
     console.print("[blue]\\[Release]:: Fetching release info ::")
-    backend_response = requests.get(url_backend)
-    frontend_response = requests.get(url_frontend)
-
-    return backend_response.json(), frontend_response.json()
+    try:
+        backend_response = requests.get(url_backend)
+        frontend_response = requests.get(url_frontend)
+        backend_response.raise_for_status()
+        frontend_response.raise_for_status()
+        backend_res_json = backend_response.json()
+        frontend_res_json = frontend_response.json()
+    except RequestException as e:
+        console.print(f"[bold red]\\[Release]:: Network or API error: {e} ::")
+        return None, None
+    return backend_res_json, frontend_res_json
 
 
 def get_release_info(release):
@@ -29,6 +40,8 @@ def get_release_info(release):
 
 
 def get_current_version(backend, f, cv):
+    if backend is None:
+        return {"error": "Network error, Backend is empty"}
     current_version = Version(cv if app_version == "unknown" else app_version)
     backend["current_version"] = (cv if app_version == "unknown" else app_version)
     release_version = Version(backend["tag_name"])
@@ -59,7 +72,7 @@ def get_current_version(backend, f, cv):
             if cv.minor < rv.minor:
                 console.print(
                     f"[bold blue]\\[Release]:: Minor version update available: [bold green]v{rv}[/bold green] ::")
-                if backend["cmnt"]:
+                if backend.get("cmnt"):
                     backend["cmnt"] += ", "
                 backend["cmnt"] += "minor"
         else:
@@ -73,12 +86,15 @@ def get_current_version(backend, f, cv):
     return backend
 
 
-def fetch_release(caller: str = "cli", current_version: str = "v0.0.0"):
+def fetch_release(caller: str = "cli", current_version: str = "0.0.0"):
     if caller == "api":
         console.quiet = True
     else:
         console.quiet = False
     backend, frontend = fetch_release_git()
+    if backend is None or frontend is None:
+        return None, None
+
     backend = get_release_info(backend)
     frontend = get_release_info(frontend)
     get_current_version(backend, frontend, current_version)
@@ -86,4 +102,4 @@ def fetch_release(caller: str = "cli", current_version: str = "v0.0.0"):
     return backend, frontend
 
 
-fetch_release()
+# fetch_release()

@@ -409,8 +409,8 @@ def main():
     else:
         console.print("[bold red]\\[CRED] Cred is wrong, Correct the cred or some feature might not work")
 
-    sync_ND_users()
-    fetch_release()
+    sync_ND_users() # Sync navidrome users to backend database
+    fetch_release() # Fetch release from github. 
 
     with console.status("[dim]Starting API and proxy...[/dim]"):
         try:

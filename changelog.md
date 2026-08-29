@@ -1,6 +1,6 @@
 # Changelog
 
-## [unreleased]
+## 1.3.0
 ### New Features:
 Added a function to fetch release details from github. Compare them and then show the user the latest release. So that user can update their app to the latest version.
 

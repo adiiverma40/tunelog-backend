@@ -12,6 +12,7 @@ All the code for misc functions are in misc folder, and All the docs are in `mis
 | Module / Feature | Description |
 | :---: | :---: |
 | **[Release Fetch](misc.md#release-fetch)** | Get release notifiction |
+| **[Heart Sync](Docs/listenbrainz.md#heart-sync-new!)** | Sync heart between ListenBrainz and the internal database. |
 
 
 ## ListenBrainz

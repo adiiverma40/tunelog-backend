@@ -201,3 +201,93 @@ This algorithm syncs the entire listenbrainz history with the tunelog database. 
 ### **Incremental History Sync**:
 
 This algorithm syncs only the new listens since the last sync with the tunelog database. It works when the `last_synced` value is not 0.
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Heart Sync - new!
+
+Previously, `Push_star` function was only pushing star to the listenbrainz. 
+The new function will work like two way sync, if there is heart in listenbrainz then sync it to navidrome and vice versa.
+
+## Why? 
+
+This feature will be usefull for those user who either listen to song with different services like `spotify`, `apple music`, `deezer`, etc. and is connected to listenbrainz, After they listen and then they mark them as heart signifying that they like the song. 
+
+Or Freaky user like me who constantly detele and reinstall navidrome. they end up loosing the stars and hearts that cause not good recommendation in some recommendation engines. Like `symfonium`'s playlist filter.
+
+## Algorithm
+The algorithm will work like this, 
+
+Pull Heart from listenbrainz using the endpoint, `api.listenbrainz.org/1/feedback/user/adiiverma40/get-feedback?metadata=true&offset=0&score=1&count=1000`.
+After pulling the heart, take top 5 hearts and check it with the internal database, if they are in the database means there was no new heart theat was added in listenbrainz. 
+Then we will proced to push heart with the `push_star` function.
+
+Dummy Data:
+
+```json
+{
+    "count": 285,
+    "feedback": [
+        {
+            "created": 1788191571,
+            "recording_mbid": "5e53f81d-1911-4d08-a338-d484ed5ed891",
+            "recording_msid": null,
+            "score": 1,
+            "track_metadata": {
+                "artist_name": "7Bantai'Z, Raja Kumari & DRJ Sohail",
+                "mbid_mapping": {
+                    "artist_mbids": [
+                        "e5f55186-52d2-453e-9a75-fc3e9fe0f4ef",
+                        "f7191ea9-8c91-48cc-b076-b02d00ae68f9",
+                        "926fd741-1cb1-4c64-99f0-c205e15b5917"
+                    ],
+                    "artists": [
+                        {
+                            "artist_credit_name": "7Bantai'Z",
+                            "artist_mbid": "e5f55186-52d2-453e-9a75-fc3e9fe0f4ef",
+                            "join_phrase": ", "
+                        },
+                        {
+                            "artist_credit_name": "Raja Kumari",
+                            "artist_mbid": "f7191ea9-8c91-48cc-b076-b02d00ae68f9",
+                            "join_phrase": " & "
+                        },
+                        {
+                            "artist_credit_name": "DRJ Sohail",
+                            "artist_mbid": "926fd741-1cb1-4c64-99f0-c205e15b5917",
+                            "join_phrase": ""
+                        }
+                    ],
+                    "caa_id": 45588361590,
+                    "caa_release_mbid": "d1f923c3-2bc0-4aae-adee-122332634c2a",
+                    "recording_mbid": "5e53f81d-1911-4d08-a338-d484ed5ed891",
+                    "release_mbid": "d1f923c3-2bc0-4aae-adee-122332634c2a"
+                },
+                "release_name": "SETLIST",
+                "track_name": "Ziddi Ladki"
+            },
+            "user_id": "adiiverma40"
+        }
+```
+
+### Desing Chocies
+
+1. Why pull 1000 of hearts from listenbrainz?
+- The request time for count =1000, and count=25 will be same, the internal lookup is much less taxing then making multiple request. With 1000 count, if we detect that the hearts are not synced, we wont have to make additional sync request.
+
+2. What if user have more then 1000 songs in heart?
+- If the count is equal to 1000, we will make another request with offset 1000, and then change the internal config to add 2000 as count.
+
+> [!note]
+> I was not able to verify what is the max count i can ask in a single request. I am assuming my method will work. as this will reduce the next round request from 2 to 1.
+

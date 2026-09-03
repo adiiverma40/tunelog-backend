@@ -2,6 +2,8 @@
 
 ## [unreleased]
 
+### Docs
+- Updated docs for listenbrainz sync heart feature. 
 
 ### Changes:
 - Added `.gitignore`

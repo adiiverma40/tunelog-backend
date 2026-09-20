@@ -24,41 +24,27 @@ def _to_utc_dt(iso_str: str) -> datetime:
     return dt
 
 
-def resolve_date_window(
-    date_from, date_to, days_from, days_to
-) -> tuple[datetime, datetime]:
-    both_provided = (date_from is not None or date_to is not None) and (
-        days_from is not None or days_to is not None
-    )
+def resolve_date_window(date_from, date_to, days_from, days_to) -> tuple[datetime, datetime]:
+    both_provided = (date_from is not None or date_to is not None) and (days_from is not None or days_to is not None)
     if both_provided:
-        raise ValueError(
-            "Provide either date_from/date_to OR days_from/days_to, not both."
-        )
+        raise ValueError("Provide either date_from/date_to OR days_from/days_to, not both.")
 
     today = datetime.now(timezone.utc)
     epoch = datetime.min.replace(tzinfo=timezone.utc)
 
     if days_from is not None or days_to is not None:
-        start = (today - timedelta(days=days_from or 0)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        end = (today - timedelta(days=days_to or 0)).replace(
-            hour=23, minute=59, second=59, microsecond=999999
-        )
+        start = (today - timedelta(days=days_from or 0)).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = (today - timedelta(days=days_to or 0)).replace(hour=23, minute=59, second=59, microsecond=999999)
         return start, end
 
     if date_from is not None or date_to is not None:
         start = epoch
         if date_from:
-            start = _to_utc_dt(date_from).replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
+            start = _to_utc_dt(date_from).replace(hour=0, minute=0, second=0, microsecond=0)
 
         end = today
         if date_to:
-            end = _to_utc_dt(date_to).replace(
-                hour=23, minute=59, second=59, microsecond=999999
-            )
+            end = _to_utc_dt(date_to).replace(hour=23, minute=59, second=59, microsecond=999999)
 
         return start, end
 
@@ -109,7 +95,7 @@ def get_discovery_pool(
                 WHERE NOT EXISTS (
                     SELECT 1
                     FROM history_db.listens hist
-                    WHERE hist.song_id = lib.song_id 
+                    WHERE hist.song_id = lib.song_id
                     AND hist.user_id = ?
                 )
                 AND substr(lib.created, 1, 27) >= ?
@@ -213,10 +199,7 @@ def build_discovery_playlist(
         log_pool(user_id, reason, sid, song.get("title", "Unknown"), "unheard")
 
     if total_listens > 0:
-        target_counts = {
-            cat: max(1, round((count / total_listens) * size))
-            for cat, count in cat_counts.items()
-        }
+        target_counts = {cat: max(1, round((count / total_listens) * size)) for cat, count in cat_counts.items()}
 
         non_genre_pool = []
         for song in pool:

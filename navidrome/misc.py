@@ -21,13 +21,9 @@ def get_ND_token(cursor):
 def fetch_ND_users(cursor, token=None):
     console.print("[bold blue]\\[USER SYNC] Fetching Navidrome Users")
     if token:
-        response = ND_queue.addWork(
-            NDWork(method="get", endpoint="/api/user", token=token)
-        )
+        response = ND_queue.addWork(NDWork(method="get", endpoint="/api/user", token=token))
     else:
-        response = ND_queue.addWork(
-            NDWork(method="get", endpoint="/api/user", token=get_ND_token(cursor))
-        )
+        response = ND_queue.addWork(NDWork(method="get", endpoint="/api/user", token=get_ND_token(cursor)))
     return response
 
 
@@ -55,14 +51,10 @@ def save_ND_users(cursor, response):
             cursor.executemany(sql, users_to_sync)
             cursor.connection.commit()
 
-            console.print(
-                f"[bold green]\\[USER SYNC] Successfully synced {len(users_to_sync)} users![/bold green]"
-            )
+            console.print(f"[bold green]\\[USER SYNC] Successfully synced {len(users_to_sync)} users![/bold green]")
 
         except Exception as e:
-            console.print(
-                f"[bold red]\\[USER SYNC] Database Error during sync: {e}[/bold red]"
-            )
+            console.print(f"[bold red]\\[USER SYNC] Database Error during sync: {e}[/bold red]")
     else:
         console.print("[yellow]\\[USER SYNC] No users found to sync.[/yellow]")
 

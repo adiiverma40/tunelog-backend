@@ -1,15 +1,14 @@
+from rich.console import Console
+
 from core.crypto import decrypt_token
 from core.db import get_db_connection_usr
-from rich.console import Console
 from Workers.worker_queue import ND_queue, NDWork
 
 console = Console()
 
 
 def fetchAllUser(cursor):
-    user = cursor.execute(
-        "select username, password from user where password is not null"
-    ).fetchall()
+    user = cursor.execute("select username, password from user where password is not null").fetchall()
     users = [{"username": u[0], "password": u[1]} for u in user]
     return users
 
@@ -23,25 +22,24 @@ def checkCred_SaveCred():
     try:
         for user in users:
             password = decrypt_token(user["password"])
-            console.print(
-                f"[bold blue]\\[CRED][checking] credentials : [/bold blue] [bold green]{user['username']}"
-            )
+            console.print(f"[bold blue]\\[CRED][checking] credentials : [/bold blue] [bold green]{user['username']}")
             res = ND_queue.addWork(
                 NDWork(
                     method="post",
                     endpoint="/auth/login",
-                    params={"username": user["username"], "password": password},
-                )
-            )
+                    params={
+                        "username": user["username"],
+                        "password": password
+                    },
+                ))
             if res.get("status") == "success":
                 token = res.get("data", {}).get("token")
                 if token:
                     user_tupple.append((token, user["username"]))
                     console.print(
-                        f"[bold blue]\\[CRED][Success] credentials : [/bold blue] [bold green]{user['username']}"
-                    )
-                
-                #  Dont need to log error, worker will log it 
+                        f"[bold blue]\\[CRED][Success] credentials : [/bold blue] [bold green]{user['username']}")
+
+                #  Dont need to log error, worker will log it
             # else:
             #     console.print(
             #         f"[bold blue]\\[CRED] credentials for {user['username']} failed"

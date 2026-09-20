@@ -129,7 +129,7 @@ def LB_Worker():
                     work.response_queue.put(result)
 
                 elif work.on_success and result.get("status") == "success":
-                    work.on_success()
+                    work.on_success(result)
 
             elif result.get("status") == "error":
                 err_msg = str(result.get("error_msg", ""))

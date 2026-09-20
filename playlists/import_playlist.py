@@ -78,16 +78,12 @@ def readCSVdata(FILE_PATH):
         if best_sc >= THRESHOLD:
             column_map[goal] = best_col
         else:
-            console.print(
-                f"[yellow]readCSVdata: No column match for '{goal}' "
-                f"(best score: {best_sc})[/yellow]"
-            )
+            console.print(f"[yellow]readCSVdata: No column match for '{goal}' "
+                          f"(best score: {best_sc})[/yellow]")
 
     missing = {"Track Name", "Artist Name", "Duration"} - set(column_map.keys())
     if missing:
-        console.print(
-            f"[bold red]readCSVdata: Missing required columns:[/bold red] {missing}"
-        )
+        console.print(f"[bold red]readCSVdata: Missing required columns:[/bold red] {missing}")
         return None
 
     df_subset = df[list(column_map.values())].copy()
@@ -97,9 +93,7 @@ def readCSVdata(FILE_PATH):
 
 @db_supervisor
 def _fetch_library_songs(cursor):
-    return cursor.execute(
-        "SELECT song_id, title, artist, album, duration FROM library"
-    ).fetchall()
+    return cursor.execute("SELECT song_id, title, artist, album, duration FROM library").fetchall()
 
 
 def getSong():
@@ -115,9 +109,7 @@ def getSong():
     conn.close()
 
     if rows is None:
-        console.print(
-            "[bold red]getSong: Failed to fetch songs after retries.[/bold red]"
-        )
+        console.print("[bold red]getSong: Failed to fetch songs after retries.[/bold red]")
         return None
 
     return [dict(row) for row in rows]
@@ -172,12 +164,7 @@ def _score_candidate(s, csv_title, csv_artist, csv_album, csv_dur_ms):
     if has_artist and has_album:
         if a >= ARTIST_THRESH and al >= ALBUM_THRESH and t >= TITLE_THRESH:
             return True, "High Confidence (A+ALB+T)"
-        if (
-            a >= ARTIST_THRESH
-            and al >= ALBUM_THRESH
-            and t >= 70
-            and dd <= DUR_THRESH_PCT
-        ):
+        if (a >= ARTIST_THRESH and al >= ALBUM_THRESH and t >= 70 and dd <= DUR_THRESH_PCT):
             return True, "Duration Fallback (Artist/Album OK)"
         if a >= ARTIST_THRESH and t >= TITLE_THRESH and dd <= DUR_THRESH_PCT:
             return True, f"Artist-Heavy (A={a:.0f} T={t:.0f} D={dd:.1f}%)"
@@ -195,9 +182,7 @@ def _score_candidate(s, csv_title, csv_artist, csv_album, csv_dur_ms):
 
 def _try_pool(pool, csv_title, csv_artist, csv_album, csv_dur_ms):
     for s in pool:
-        matched, strategy = _score_candidate(
-            s, csv_title, csv_artist, csv_album, csv_dur_ms
-        )
+        matched, strategy = _score_candidate(s, csv_title, csv_artist, csv_album, csv_dur_ms)
         if matched:
             return s, strategy
     return None, None
@@ -207,17 +192,13 @@ def _match_song(csv_title, csv_artist, csv_album, csv_dur_ms, index):
     key = f"{csv_artist} - {csv_title}"
     exact = index["exact"].get(key)
     if exact:
-        matched, strategy = _score_candidate(
-            exact, csv_title, csv_artist, csv_album, csv_dur_ms
-        )
+        matched, strategy = _score_candidate(exact, csv_title, csv_artist, csv_album, csv_dur_ms)
         if matched:
             return exact, f"Exact key → {strategy}"
 
     known_artists = list(index["artist_dict"].keys())
     if csv_artist and known_artists:
-        artist_hits = process.extract(
-            csv_artist, known_artists, scorer=fuzz.token_set_ratio, limit=10
-        )
+        artist_hits = process.extract(csv_artist, known_artists, scorer=fuzz.token_set_ratio, limit=10)
         pool = []
         for hit in artist_hits:
             if hit[1] >= ARTIST_THRESH:
@@ -230,9 +211,7 @@ def _match_song(csv_title, csv_artist, csv_album, csv_dur_ms, index):
 
     known_albums = list(index["album_dict"].keys())
     if csv_album and known_albums:
-        album_hits = process.extract(
-            csv_album, known_albums, scorer=fuzz.token_sort_ratio, limit=5
-        )
+        album_hits = process.extract(csv_album, known_albums, scorer=fuzz.token_sort_ratio, limit=5)
         pool = []
         for hit in album_hits:
             if hit[1] >= ALBUM_THRESH:
@@ -245,22 +224,16 @@ def _match_song(csv_title, csv_artist, csv_album, csv_dur_ms, index):
 
     title_pool = index["title_dict"].get(csv_title, [])
     if title_pool:
-        s, strategy = _try_pool(
-            title_pool, csv_title, csv_artist, csv_album, csv_dur_ms
-        )
+        s, strategy = _try_pool(title_pool, csv_title, csv_artist, csv_album, csv_dur_ms)
         if s:
             return s, f"Title-index → {strategy}"
 
     if index["title_pool"]:
-        top = process.extractOne(
-            csv_title, index["title_pool"], scorer=fuzz.token_set_ratio
-        )
+        top = process.extractOne(csv_title, index["title_pool"], scorer=fuzz.token_set_ratio)
         if top and top[1] >= GLOBAL_MIN:
             candidate = index["song_by_id"].get(top[2])
             if candidate:
-                matched, strategy = _score_candidate(
-                    candidate, csv_title, csv_artist, csv_album, csv_dur_ms
-                )
+                matched, strategy = _score_candidate(candidate, csv_title, csv_artist, csv_album, csv_dur_ms)
                 if matched:
                     return candidate, f"Global-title-sweep → {strategy}"
 
@@ -270,31 +243,23 @@ def _match_song(csv_title, csv_artist, csv_album, csv_dur_ms, index):
 def fuzzymatching(filePath):
     df_csv = readCSVdata(filePath)
     if df_csv is None:
-        console.print(
-            "[bold red]fuzzymatching: Aborting — CSV could not be loaded.[/bold red]"
-        )
+        console.print("[bold red]fuzzymatching: Aborting — CSV could not be loaded.[/bold red]")
         status_registry.update("sync", status="crashed", error="CSV load failed")
         return None
 
     db_songs = getSong()
     if db_songs is None:
-        console.print(
-            "[bold red]fuzzymatching: Aborting — could not load library from DB.[/bold red]"
-        )
+        console.print("[bold red]fuzzymatching: Aborting — could not load library from DB.[/bold red]")
         status_registry.update("sync", status="crashed", error="DB fetch failed")
         return None
 
-    console.print(
-        f"[bold green]fuzzymatching:[/bold green] "
-        f"{len(df_csv)} CSV rows vs {len(db_songs)} DB songs"
-    )
+    console.print(f"[bold green]fuzzymatching:[/bold green] "
+                  f"{len(df_csv)} CSV rows vs {len(db_songs)} DB songs")
     index = _build_db_index(db_songs)
-    console.print(
-        f"[dim]Index built: "
-        f"{len(index['artist_dict'])} artists, "
-        f"{len(index['album_dict'])} albums, "
-        f"{len(index['title_dict'])} titles[/dim]"
-    )
+    console.print(f"[dim]Index built: "
+                  f"{len(index['artist_dict'])} artists, "
+                  f"{len(index['album_dict'])} albums, "
+                  f"{len(index['title_dict'])} titles[/dim]")
 
     matched_ids = []
     results = []
@@ -307,48 +272,40 @@ def fuzzymatching(filePath):
             csv_album = clean_string(csv_row.get("Album Name", ""))
             csv_dur_ms = int(csv_row["Duration"])
         except (ValueError, KeyError) as e:
-            console.print(
-                f"[yellow]fuzzymatching: Skipping row {idx} — bad data: {e}[/yellow]"
-            )
+            console.print(f"[yellow]fuzzymatching: Skipping row {idx} — bad data: {e}[/yellow]")
             continue
 
-        match, strategy = _match_song(
-            csv_title, csv_artist, csv_album, csv_dur_ms, index
-        )
+        match, strategy = _match_song(csv_title, csv_artist, csv_album, csv_dur_ms, index)
 
         if match:
             n += 1
             matched_ids.append(match["song_id"])
-            console.print(
-                f"[green]✔[/green] '{csv_row['Track Name']}' [dim]({strategy})[/dim]"
-            )
-            results.append(
-                {
-                    "title": csv_row["Track Name"],
-                    "artist": csv_row["Artist Name"],
-                    "found": True,
-                    "song_id": match["song_id"],
-                }
-            )
+            console.print(f"[green]✔[/green] '{csv_row['Track Name']}' [dim]({strategy})[/dim]")
+            results.append({
+                "title": csv_row["Track Name"],
+                "artist": csv_row["Artist Name"],
+                "found": True,
+                "song_id": match["song_id"],
+            })
         else:
             console.print(f"[yellow]✘[/yellow] '{csv_row['Track Name']}' — no match")
-            results.append(
-                {
-                    "title": csv_row["Track Name"],
-                    "artist": csv_row["Artist Name"],
-                    "found": False,
-                    "song_id": None,
-                }
-            )
+            results.append({
+                "title": csv_row["Track Name"],
+                "artist": csv_row["Artist Name"],
+                "found": False,
+                "song_id": None,
+            })
 
-    console.print(
-        f"[bold green]fuzzymatching: Done.[/bold green] "
-        f"Matched {n}/{len(df_csv)} tracks."
-    )
+    console.print(f"[bold green]fuzzymatching: Done.[/bold green] "
+                  f"Matched {n}/{len(df_csv)} tracks.")
     status_registry.update("sync", status="idle")
 
     return {
         "matched_ids": matched_ids,
         "results": results,
-        "summary": {"total": len(df_csv), "matched": n, "not_found": len(df_csv) - n},
+        "summary": {
+            "total": len(df_csv),
+            "matched": n,
+            "not_found": len(df_csv) - n
+        },
     }

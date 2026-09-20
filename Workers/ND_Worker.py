@@ -4,12 +4,12 @@ import queue
 import time
 
 import requests
-from core.config import Navidrome_url
 from rich.console import Console
+
+from core.config import Navidrome_url
 from Workers.worker_queue import ND_queue
 
 console = Console()
-
 
 ND_BASE = Navidrome_url
 ND_HEADERS = {
@@ -171,20 +171,14 @@ def ND_Worker():
                 if "503" in err_msg or "502" in err_msg:
                     if work.attempts < work.max_retries:
                         work.attempts += 1
-                        console.print(
-                            f"[yellow]\\[WORKER] 503 Overload. Re-queueing task "
-                            f"(Attempt {work.attempts}/{work.max_retries})[/yellow]"
-                        )
+                        console.print(f"[yellow]\\[WORKER] 503 Overload. Re-queueing task "
+                                      f"(Attempt {work.attempts}/{work.max_retries})[/yellow]")
                         ND_queue.addBackgroundTask(priority=10, work=work)
                     else:
-                        console.print(
-                            f"[red]\\[WORKER] Task exhausted {work.max_retries} retries.[/red]"
-                        )
+                        console.print(f"[red]\\[WORKER] Task exhausted {work.max_retries} retries.[/red]")
 
             time.sleep(0.1)
 
         except queue.Empty:
-            console.print(
-                f"[bold red]\\[WORKER]\\[NAVIDROME] The queue is empty for {timeout}sec. Exiting[/bold red]"
-            )
+            console.print(f"[bold red]\\[WORKER]\\[NAVIDROME] The queue is empty for {timeout}sec. Exiting[/bold red]")
             break

@@ -20,9 +20,7 @@ from .listenbrainz_playlist import build_LB_CF_playlist
 from .tier_playlist import tierPlaylist
 
 
-def run_blend(
-    user_id, password, explicit_filter="notExplicit", size=None, injection=True
-):
+def run_blend(user_id, password, explicit_filter="notExplicit", size=None, injection=True):
     size = size or tune_config["playlist_generation"]["playlist_size"]
     return appendPlaylist(user_id, password, explicit_filter, size, injection)
 
@@ -36,18 +34,12 @@ def run_discovery(
     days_to=None,
     backtrack: bool = True,
 ):
-    window_start, window_end = resolve_date_window(
-        date_from, date_to, days_from, days_to
-    )
+    window_start, window_end = resolve_date_window(date_from, date_to, days_from, days_to)
     _, history = getDataFromDb()
     alias_to_cat = get_translation_maps(readJSON())
 
-    pool, backtracked, days_back = get_discovery_pool(
-        window_start, window_end, size, backtrack, user_id=user_id
-    )
-    song_ids, song_signals = build_discovery_playlist(
-        pool, history, user_id, size, alias_to_cat
-    )
+    pool, backtracked, days_back = get_discovery_pool(window_start, window_end, size, backtrack, user_id=user_id)
+    song_ids, song_signals = build_discovery_playlist(pool, history, user_id, size, alias_to_cat)
 
     push_playlist(song_ids, user_id, song_signals, playlist_type="discovery")
     return song_ids, song_signals
@@ -59,9 +51,8 @@ def run_listenbrainz_cf(user_id, cf_config):
     alias_to_cat = get_translation_maps(readJSON())
     standard_scores = score_song(user_id, library, history)
 
-    song_ids, song_signals, heard_score, unheard_score = build_LB_CF_playlist(
-        user_id, cf_config, history, alias_to_cat, standard_scores
-    )
+    song_ids, song_signals, heard_score, unheard_score = build_LB_CF_playlist(user_id, cf_config, history, alias_to_cat,
+                                                                              standard_scores)
 
     push_playlist(song_ids, user_id, song_signals, playlist_type="listenbrainz_cf")
     return song_ids, song_signals, heard_score, unheard_score
@@ -82,7 +73,5 @@ def run_tier(user_id, size):
 
 if __name__ == "__main__":
     for user in get_all_users():
-        print(
-            f"[entry_point] {user}: ready for run_blend / run_discovery / "
-            f"run_listenbrainz_cf / run_import"
-        )
+        print(f"[entry_point] {user}: ready for run_blend / run_discovery / "
+              f"run_listenbrainz_cf / run_import")

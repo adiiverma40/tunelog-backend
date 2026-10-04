@@ -151,6 +151,9 @@ DEFAULT_CONFIG = {
         "enabled": False,
         "dedup_window_seconds": 30,
         "PushLovedSongs": False,
+        "two_way_sync" : True,
+        "last_two_way_sync" : 0,
+        "two_way_check_frequency":24,
     },
     "timeout": {
         "skip_count": 3,

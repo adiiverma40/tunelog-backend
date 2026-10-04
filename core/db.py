@@ -224,7 +224,8 @@ def init_db_lib():
             songId              TEXT NOT NULL PRIMARY KEY,
             starred               BOOL,
             last_synced     INTEGER,
-            done            bool
+            done            bool,
+            source          TEXT
         )
     """)
     _ensure_columns(
@@ -236,6 +237,7 @@ def init_db_lib():
             "starred": "BOOL",
             "last_synced": "INTEGER",
             "done": "bool",
+            "source" : "TEXT"
         },
     )
 

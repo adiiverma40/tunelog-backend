@@ -5,8 +5,18 @@
 ### Docs
 - Updated docs for listenbrainz sync heart feature. 
 
+> [!important] There are some bugs that need to be sorted before pushing to prod 
+
 ### Changes:
 - Added `.gitignore`
+- Added `source` row in synced table 
+- Added 1st version of two way sync 
+
+
+
+
+
+
 
 ---
 

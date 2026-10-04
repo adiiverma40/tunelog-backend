@@ -5,7 +5,13 @@
 ### Docs
 - Updated docs for listenbrainz sync heart feature. 
 
-> [!important] There are some bugs that need to be sorted before pushing to prod 
+> [!important] There are some bugs that need to be sorted before pushing to prod
+
+### Past Mistake Correction:
+- I had forgot to add `user` when adding in sync.- Read `listenbrainz.md`
+
+### Added :
+- Added `user` row in sync table. (Should have done earlier)
 
 ### Changes:
 - Added `.gitignore`

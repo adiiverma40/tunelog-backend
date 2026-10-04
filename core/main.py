@@ -475,7 +475,7 @@ def main():
             status_registry.update("watcher", status="crashed", error=str(e))
             console.print(f"[red]✗ Watcher startup failed:[/red] {e}")
             sys.exit(1)
-    console.print("[green]✓ Watcher running[/green]")
+    console.print("[green]:: Watcher running ::[/green]")
     last_auto_sync_day = None
     isGenerated = False
     is_lb_syncing = False
@@ -484,24 +484,24 @@ def main():
     conn = get_db_connection_lib()
     cursor = conn.cursor()
     song = cursor.execute("select * from library").fetchone()
-    if song is not None:
-        run_migration_v_0_63_2()
-    else:
-        print("library is empty, skipping migration")
+    # if song is not None:
+    #     run_migration_v_0_63_2()
+    # else:
+    #     print("library is empty, skipping migration")
 
     console.print("[bold red]===============================")
-
+    fetchStar()
     console.print("[bold blue]Starting Library Sync(20 sec delay)")
-    syncThread = threading.Timer(20, library.sync_library)
-    syncThread.start()
-    syncThread.join()
-    runnerThread = threading.Timer(20, run_migration_v_0_63_2)
-    runnerThread.start()
-    runnerThread.join()
-
-    console.print("[bold blue]Starting Scoring CORN JOB(1m delay)")
-    scoringThread = threading.Timer(60, songScoringCorn)
-    scoringThread.start()
+    # syncThread = threading.Timer(20, library.sync_library)
+    # syncThread.start()
+    # syncThread.join()
+#     runnerThread = threading.Timer(20, run_migration_v_0_63_2)
+#     runnerThread.start()
+#     runnerThread.join()
+# 
+#     console.print("[bold blue]Starting Scoring CORN JOB(1m delay)")
+#     scoringThread = threading.Timer(60, songScoringCorn)
+#     scoringThread.start()
 
     if tune_config["listenbrainz"]["PushLovedSongs"]:
         console.print("[bold blue]Pushing Starred Song to Listenbrainz(5 sec delay)")
@@ -511,7 +511,7 @@ def main():
         console.print("[bold red]Starred Song Syncing Disabled, SKIPPING")
 
     console.print("Checking Musicbrainz Remaining Seedings")
-    musicBrainzThread()
+    # musicBrainzThread()
     last_auto_sync_day = None
     isGenerated = False
 
@@ -523,201 +523,201 @@ def main():
     is_two_way_syncing = False
     last_two_way_sync_timestamp = None
     listenBrainzconf = tune_config['listenbrainz']
-
-    while True:
-        Auto_LB_CF()
-
-        if library._startSyncSong and not library._isSyncing:
-            console.print("[dim]Manual library sync triggered.[/dim]")
-            syncThread = threading.Thread(target=library.sync_library, daemon=True)
-            syncThread.start()
-
-        now = datetime.now(ZoneInfo(library._timezone))
-        current_hour = now.hour
-        current_day = now.date()
-        settings = library.getSyncSettings()
-        auto_sync_hour = settings["auto_sync"]
-        autoGenerateLB_CF(current_hour, current_day, library._timezone)
-
-        # LISTENBRAINZ TWO WAY SYNC 
-        if listenBrainzconf.get("two_way_sync", False) and not is_two_way_syncing:
-            check_freq_hours = float(listenBrainzconf.get("two_way_check_frequency", 24))
-            config_last_two_way = listenBrainzconf.get("last_two_way_sync") or 0
-            effective_last_two_way = (last_two_way_sync_timestamp
-                                      if last_two_way_sync_timestamp else config_last_two_way)
-            current_unix_time = int(time.time())
-            two_way_threshold = check_freq_hours * 3600
-
-            if not effective_last_two_way or (current_unix_time - int(effective_last_two_way) >= two_way_threshold):
-                console.print(f"[dim]ListenBrainz two-way sync triggered (interval: {check_freq_hours}h).[/dim]")
-                is_two_way_syncing = True
-                last_two_way_sync_timestamp = current_unix_time
-
-                def run_two_way_sync():
-                    try:
-                        lb_conf = tune_config.get("listenbrainz", {})
-                        if not lb_conf.get("two_way_sync"):
-                            console.print("[yellow]⚠ Two-way sync skipped: disabled in config.[/yellow]")
-                            return
-
-                        # Run the two-way sync function
-                        fetchStar()
-
-                        # Update timestamp and persist to config
-                        tune_config["listenbrainz"]["last_two_way_sync"] = int(time.time())
-                        save_config(tune_config)
-                        console.print("[green]✓ ListenBrainz two-way sync complete.[/green]")
-
-                    except Exception as e:
-                        console.print(f"[red]✗ ListenBrainz two-way sync failed:[/red] {e}")
-                    finally:
-                        nonlocal is_two_way_syncing
-                        is_two_way_syncing = False
-
-                twoWayThread = threading.Thread(target=run_two_way_sync, daemon=True)
-                twoWayThread.start()
-
-        if (current_hour == auto_sync_hour and current_day != last_auto_sync_day and not library._isSyncing):
-            console.print(f"[dim]Auto library sync triggered at {now.strftime('%H:%M')}.[/dim]")
-            last_auto_sync_day = current_day
-            syncThread = threading.Thread(target=autoSyncWithFallback, daemon=True)
-            syncThread.start()
-
-        playlistConf = tune_config["playlist_generation"]
-        conf = tune_config
-
-        if (playlistConf["auto_generate_playlist"] and playlistConf["last_auto_generate"] != str(current_day)
-                and current_hour == playlistConf["auto_generate_time"]):
-            console.print(f"[dim]Auto playlist generation triggered at {current_hour}:00.[/dim]")
-
-            size = playlistConf["playlist_size"]
-            explicit_filter = playlistConf["auto_generate_explicit"]
-            injection = playlistConf["auto_generate_injection"]
-            library1, history = getDataFromDb()
-            users = playlistConf["auto_generate_for"]
-
-            if len(users) > 0:
-                for user in users:
-                    scores = score_song(user, history_dict=history, library_dict=library1)
-                    unheard, unheard_ratio, all_time = get_unheard_songs(library1, user)
-                    wildcards = get_wildcard_songs(scores, user)
-                    playlist, song_signals = build_playlist(
-                        library1,
-                        history,
-                        scores,
-                        unheard,
-                        wildcards,
-                        unheard_ratio,
-                        all_time,
-                        user,
-                        explicit_filter,
-                        size,
-                        injection,
-                    )
-                    push_playlist(playlist, user, song_signals, playlist_type="blend")
-                    console.print(f"[green]✓ Blend pushed for {user}[/green]")
-
-                    try:
-                        window_start, window_end = resolve_date_window(
-                            date_from=None,
-                            date_to=None,
-                            days_from=50,
-                            days_to=0,
-                        )
-                        alias_to_cat = get_translation_maps(readJSON())
-                        pool, did_backtrack, days_backtracked = get_discovery_pool(
-                            window_start=window_start,
-                            window_end=window_end,
-                            size=size,
-                            backtrack=True,
-                            user_id=user,
-                        )
-                        final_ids, disc_signals = build_discovery_playlist(
-                            pool,
-                            history,
-                            user,
-                            size,
-                            alias_to_cat,
-                        )
-                        if final_ids and len(final_ids) != 0:
-                            push_playlist(
-                                final_ids,
-                                user,
-                                disc_signals,
-                                playname="Discovery Pool",
-                                newPlaylist=False,
-                                playlist_type="discovery",
-                            )
-                            backtrack_note = (f", backtracked {days_backtracked}d" if did_backtrack else "")
-                            console.print(
-                                f"[green]✓ Discovery pushed for {user} ({len(final_ids)} songs{backtrack_note})[/green]"
-                            )
-                        else:
-                            console.print(f"[yellow]⚠ Discovery: no songs found for {user}[/yellow]")
-                    except Exception as e:
-                        console.print(f"[red]✗ Discovery generation failed for {user}:[/red] {e}")
-            else:
-                console.print("[yellow]⚠ Auto generation skipped: no users configured.[/yellow]")
-
-            isGenerated = True
-
-        if isGenerated:
-            conf["playlist_generation"]["last_auto_generate"] = str(current_day)
-            save_config(conf)
-            isGenerated = False
-            console.print("[dim]Auto generation timestamp saved.[/dim]")
-
-        listenBrainzconf = tune_config["listenbrainz"]
-
-        if listenBrainzconf.get("enabled", False) and not is_lb_syncing:
-            pool_time_hours = float(listenBrainzconf.get("pool_listen_brainz", 6))
-            config_last_synced = listenBrainzconf.get("last_synced") or 0
-            effective_last_synced = (last_lb_sync_timestamp if last_lb_sync_timestamp else config_last_synced)
-            current_unix_time = int(time.time())
-            seconds_threshold = pool_time_hours * 3600
-
-            if not effective_last_synced or (current_unix_time - int(effective_last_synced) >= seconds_threshold):
-                console.print(f"[dim]ListenBrainz sync triggered (interval: {pool_time_hours}h).[/dim]")
-                is_lb_syncing = True
-                last_lb_sync_timestamp = current_unix_time
-
-                def run_lb_sync():
-                    try:
-                        lb_conf = tune_config.get("listenbrainz", {})
-
-                        if not lb_conf.get("enabled"):
-                            console.print("[yellow]⚠ ListenBrainz sync skipped: disabled in config.[/yellow]")
-                            return
-
-                        LatestTimeStamp = fuzzyMatchingSong()
-
-                        if LatestTimeStamp:
-                            tune_config["listenbrainz"]["last_synced"] = int(LatestTimeStamp)
-                        else:
-                            tune_config["listenbrainz"]["last_synced"] = int(config_last_synced)
-
-                        save_config(tune_config)
-                        console.print("[green]✓ ListenBrainz sync complete.[/green]")
-                        run_lb_fuzzy_matching()
-                        songScoringCorn()
-
-                    except Exception as e:
-                        console.print(f"[red]✗ ListenBrainz sync failed:[/red] {e}")
-                    finally:
-                        nonlocal is_lb_syncing
-                        is_lb_syncing = False
-
-                lbSyncThread = threading.Thread(target=run_lb_sync, daemon=True)
-                lbSyncThread.start()
-                # scoringThread.start()
-
-        try:
-            event = event_queue.get(timeout=2)
-            if event == "nowPlaying":
-                Watcher()
-            elif event == "librarySync":
-                sync_library()
-                console.print("[green]✓ Library sync complete.[/green]")
-        except Exception as e:
-            if "Empty" not in str(type(e).__name__):
-                console.print(f"[red]✗ Main loop error:[/red] {e}")
+# 
+#     while True:
+#         Auto_LB_CF()
+# 
+#         if library._startSyncSong and not library._isSyncing:
+#             console.print("[dim]Manual library sync triggered.[/dim]")
+#             syncThread = threading.Thread(target=library.sync_library, daemon=True)
+#             syncThread.start()
+# 
+#         now = datetime.now(ZoneInfo(library._timezone))
+#         current_hour = now.hour
+#         current_day = now.date()
+#         settings = library.getSyncSettings()
+#         auto_sync_hour = settings["auto_sync"]
+#         autoGenerateLB_CF(current_hour, current_day, library._timezone)
+# 
+#         # LISTENBRAINZ TWO WAY SYNC 
+#         if listenBrainzconf.get("two_way_sync", False) and not is_two_way_syncing:
+#             check_freq_hours = float(listenBrainzconf.get("two_way_check_frequency", 24))
+#             config_last_two_way = listenBrainzconf.get("last_two_way_sync") or 0
+#             effective_last_two_way = (last_two_way_sync_timestamp
+#                                       if last_two_way_sync_timestamp else config_last_two_way)
+#             current_unix_time = int(time.time())
+#             two_way_threshold = check_freq_hours * 3600
+# 
+#             if not effective_last_two_way or (current_unix_time - int(effective_last_two_way) >= two_way_threshold):
+#                 console.print(f"[dim]ListenBrainz two-way sync triggered (interval: {check_freq_hours}h).[/dim]")
+#                 is_two_way_syncing = True
+#                 last_two_way_sync_timestamp = current_unix_time
+# 
+#                 def run_two_way_sync():
+#                     try:
+#                         lb_conf = tune_config.get("listenbrainz", {})
+#                         if not lb_conf.get("two_way_sync"):
+#                             console.print("[yellow]⚠ Two-way sync skipped: disabled in config.[/yellow]")
+#                             return
+# 
+#                         # Run the two-way sync function
+#                         fetchStar()
+# 
+#                         # Update timestamp and persist to config
+#                         tune_config["listenbrainz"]["last_two_way_sync"] = int(time.time())
+#                         save_config(tune_config)
+#                         console.print("[green]✓ ListenBrainz two-way sync complete.[/green]")
+# 
+#                     except Exception as e:
+#                         console.print(f"[red]✗ ListenBrainz two-way sync failed:[/red] {e}")
+#                     finally:
+#                         nonlocal is_two_way_syncing
+#                         is_two_way_syncing = False
+# 
+#                 twoWayThread = threading.Thread(target=run_two_way_sync, daemon=True)
+#                 twoWayThread.start()
+# 
+#         if (current_hour == auto_sync_hour and current_day != last_auto_sync_day and not library._isSyncing):
+#             console.print(f"[dim]Auto library sync triggered at {now.strftime('%H:%M')}.[/dim]")
+#             last_auto_sync_day = current_day
+#             syncThread = threading.Thread(target=autoSyncWithFallback, daemon=True)
+#             syncThread.start()
+# 
+#         playlistConf = tune_config["playlist_generation"]
+#         conf = tune_config
+# 
+#         if (playlistConf["auto_generate_playlist"] and playlistConf["last_auto_generate"] != str(current_day)
+#                 and current_hour == playlistConf["auto_generate_time"]):
+#             console.print(f"[dim]Auto playlist generation triggered at {current_hour}:00.[/dim]")
+# 
+#             size = playlistConf["playlist_size"]
+#             explicit_filter = playlistConf["auto_generate_explicit"]
+#             injection = playlistConf["auto_generate_injection"]
+#             library1, history = getDataFromDb()
+#             users = playlistConf["auto_generate_for"]
+# 
+#             if len(users) > 0:
+#                 for user in users:
+#                     scores = score_song(user, history_dict=history, library_dict=library1)
+#                     unheard, unheard_ratio, all_time = get_unheard_songs(library1, user)
+#                     wildcards = get_wildcard_songs(scores, user)
+#                     playlist, song_signals = build_playlist(
+#                         library1,
+#                         history,
+#                         scores,
+#                         unheard,
+#                         wildcards,
+#                         unheard_ratio,
+#                         all_time,
+#                         user,
+#                         explicit_filter,
+#                         size,
+#                         injection,
+#                     )
+#                     push_playlist(playlist, user, song_signals, playlist_type="blend")
+#                     console.print(f"[green]✓ Blend pushed for {user}[/green]")
+# 
+#                     try:
+#                         window_start, window_end = resolve_date_window(
+#                             date_from=None,
+#                             date_to=None,
+#                             days_from=50,
+#                             days_to=0,
+#                         )
+#                         alias_to_cat = get_translation_maps(readJSON())
+#                         pool, did_backtrack, days_backtracked = get_discovery_pool(
+#                             window_start=window_start,
+#                             window_end=window_end,
+#                             size=size,
+#                             backtrack=True,
+#                             user_id=user,
+#                         )
+#                         final_ids, disc_signals = build_discovery_playlist(
+#                             pool,
+#                             history,
+#                             user,
+#                             size,
+#                             alias_to_cat,
+#                         )
+#                         if final_ids and len(final_ids) != 0:
+#                             push_playlist(
+#                                 final_ids,
+#                                 user,
+#                                 disc_signals,
+#                                 playname="Discovery Pool",
+#                                 newPlaylist=False,
+#                                 playlist_type="discovery",
+#                             )
+#                             backtrack_note = (f", backtracked {days_backtracked}d" if did_backtrack else "")
+#                             console.print(
+#                                 f"[green]✓ Discovery pushed for {user} ({len(final_ids)} songs{backtrack_note})[/green]"
+#                             )
+#                         else:
+#                             console.print(f"[yellow]⚠ Discovery: no songs found for {user}[/yellow]")
+#                     except Exception as e:
+#                         console.print(f"[red]✗ Discovery generation failed for {user}:[/red] {e}")
+#             else:
+#                 console.print("[yellow]⚠ Auto generation skipped: no users configured.[/yellow]")
+# 
+#             isGenerated = True
+# 
+#         if isGenerated:
+#             conf["playlist_generation"]["last_auto_generate"] = str(current_day)
+#             save_config(conf)
+#             isGenerated = False
+#             console.print("[dim]Auto generation timestamp saved.[/dim]")
+# 
+#         listenBrainzconf = tune_config["listenbrainz"]
+# 
+#         if listenBrainzconf.get("enabled", False) and not is_lb_syncing:
+#             pool_time_hours = float(listenBrainzconf.get("pool_listen_brainz", 6))
+#             config_last_synced = listenBrainzconf.get("last_synced") or 0
+#             effective_last_synced = (last_lb_sync_timestamp if last_lb_sync_timestamp else config_last_synced)
+#             current_unix_time = int(time.time())
+#             seconds_threshold = pool_time_hours * 3600
+# 
+#             if not effective_last_synced or (current_unix_time - int(effective_last_synced) >= seconds_threshold):
+#                 console.print(f"[dim]ListenBrainz sync triggered (interval: {pool_time_hours}h).[/dim]")
+#                 is_lb_syncing = True
+#                 last_lb_sync_timestamp = current_unix_time
+# 
+#                 def run_lb_sync():
+#                     try:
+#                         lb_conf = tune_config.get("listenbrainz", {})
+# 
+#                         if not lb_conf.get("enabled"):
+#                             console.print("[yellow]⚠ ListenBrainz sync skipped: disabled in config.[/yellow]")
+#                             return
+# 
+#                         LatestTimeStamp = fuzzyMatchingSong()
+# 
+#                         if LatestTimeStamp:
+#                             tune_config["listenbrainz"]["last_synced"] = int(LatestTimeStamp)
+#                         else:
+#                             tune_config["listenbrainz"]["last_synced"] = int(config_last_synced)
+# 
+#                         save_config(tune_config)
+#                         console.print("[green]✓ ListenBrainz sync complete.[/green]")
+#                         run_lb_fuzzy_matching()
+#                         songScoringCorn()
+# 
+#                     except Exception as e:
+#                         console.print(f"[red]✗ ListenBrainz sync failed:[/red] {e}")
+#                     finally:
+#                         nonlocal is_lb_syncing
+#                         is_lb_syncing = False
+# 
+#                 lbSyncThread = threading.Thread(target=run_lb_sync, daemon=True)
+#                 lbSyncThread.start()
+#                 # scoringThread.start()
+# 
+#         try:
+#             event = event_queue.get(timeout=2)
+#             if event == "nowPlaying":
+#                 Watcher()
+#             elif event == "librarySync":
+#                 sync_library()
+#                 console.print("[green]✓ Library sync complete.[/green]")
+#         except Exception as e:
+#             if "Empty" not in str(type(e).__name__):
+#                 console.print(f"[red]✗ Main loop error:[/red] {e}")

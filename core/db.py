@@ -225,7 +225,8 @@ def init_db_lib():
             starred               BOOL,
             last_synced     INTEGER,
             done            bool,
-            source          TEXT
+            source          TEXT,
+            user            TEXT
         )
     """)
     _ensure_columns(
@@ -237,7 +238,8 @@ def init_db_lib():
             "starred": "BOOL",
             "last_synced": "INTEGER",
             "done": "bool",
-            "source" : "TEXT"
+            "source" : "TEXT",
+            "user" : "TEXT"
         },
     )
 

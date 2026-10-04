@@ -202,34 +202,23 @@ This algorithm syncs the entire listenbrainz history with the tunelog database. 
 
 This algorithm syncs only the new listens since the last sync with the tunelog database. It works when the `last_synced` value is not 0.
 
-
-
-
-
-
-
-
-
-
-
-
-
 # Heart Sync - new!
 
-Previously, `Push_star` function was only pushing star to the listenbrainz. 
+Previously, `Push_star` function was only pushing star to the listenbrainz.
 The new function will work like two way sync, if there is heart in listenbrainz then sync it to navidrome and vice versa.
 
-## Why? 
+## Why?
 
-This feature will be usefull for those user who either listen to song with different services like `spotify`, `apple music`, `deezer`, etc. and is connected to listenbrainz, After they listen and then they mark them as heart signifying that they like the song. 
+This feature will be usefull for those user who either listen to song with different services like `spotify`, `apple music`, `deezer`, etc. and is connected to listenbrainz, After they listen and then they mark them as heart signifying that they like the song.
 
 Or Freaky user like me who constantly detele and reinstall navidrome. they end up loosing the stars and hearts that cause not good recommendation in some recommendation engines. Like `symfonium`'s playlist filter.
 
 ## Algorithm
-The algorithm will work like this, 
+
+The algorithm will work like this,
 
 Pull Heart from listenbrainz using the endpoint, `api.listenbrainz.org/1/feedback/user/adiiverma40/get-feedback?metadata=true&offset=0&score=1&count=1000`.
-After pulling the heart, take top 5 hearts and check it with the internal database, if they are in the database means there was no new heart theat was added in listenbrainz. 
+After pulling the heart, take top 5 hearts and check it with the internal database, if they are in the database means there was no new heart theat was added in listenbrainz.
 Then we will proced to push heart with the `push_star` function.
 
 Dummy Data:
@@ -283,11 +272,20 @@ Dummy Data:
 ### Desing Chocies
 
 1. Why pull 1000 of hearts from listenbrainz?
+
 - The request time for count =1000, and count=25 will be same, the internal lookup is much less taxing then making multiple request. With 1000 count, if we detect that the hearts are not synced, we wont have to make additional sync request.
 
 2. What if user have more then 1000 songs in heart?
+
 - If the count is equal to 1000, we will make another request with offset 1000, and then change the internal config to add 2000 as count.
 
 > [!note]
 > I was not able to verify what is the max count i can ask in a single request. I am assuming my method will work. as this will reduce the next round request from 2 to 1.
 
+### Fixing past Desing Chocies
+
+When creating One way sync, I didnt add user in the table, And that is making problems in two way sync for multi-user.
+
+**FIX:**
+To fix the mistake i will have to redo from start. Navidrome is the source of truth so, i will drop the table, create a new table with user as primary key.
+The current way to detect new star is that when the library sync run, Navidrome retuns, `Starred` field for every song, that gets inserted in the sync table. The problem is that the navidrome retuns data for per user. So for multi user, I will have to loop for every user, which has a cookie.
